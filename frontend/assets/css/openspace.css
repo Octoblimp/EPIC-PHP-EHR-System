@@ -157,10 +157,13 @@ a:hover {
     align-items: center;
     gap: 4px;
     white-space: nowrap;
+    text-decoration: none;
 }
 
 .toolbar-btn:hover {
     background: var(--toolbar-btn-hover);
+    text-decoration: none;
+    color: var(--header-text);
 }
 
 .toolbar-btn.active {

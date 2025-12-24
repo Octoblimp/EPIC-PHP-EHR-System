@@ -72,37 +72,63 @@ $show_sidebar = in_array($current_page, $patient_pages) || isset($_GET['id']);
 
 // Get user settings for sidebar customization
 $user_settings = $_SESSION['user_settings'] ?? [];
-$sidebar_favorites = $user_settings['sidebar_favorites'] ?? ['home', 'patients', 'schedule', 'inbox', 'reports'];
+$sidebar_favorites = $user_settings['sidebar_favorites'] ?? ['summary', 'flowsheets', 'notes', 'mar', 'orders', 'results'];
 
-// Define all available navigation items with permissions
-$all_nav_items = [
-    'home' => ['icon' => 'fa-home', 'label' => 'Home', 'url' => 'home.php', 'permission' => 'screens.home'],
-    'patients' => ['icon' => 'fa-users', 'label' => 'Patient Lists', 'url' => 'patients.php', 'permission' => 'screens.patient_search'],
-    'schedule' => ['icon' => 'fa-calendar-alt', 'label' => 'Schedule', 'url' => 'schedule.php', 'permission' => 'screens.schedule'],
-    'inbox' => ['icon' => 'fa-inbox', 'label' => 'In Basket', 'url' => 'inbox.php', 'permission' => 'screens.inbox'],
-    'reports' => ['icon' => 'fa-chart-bar', 'label' => 'Reports', 'url' => 'reports.php', 'permission' => 'screens.reports'],
-    'orders' => ['icon' => 'fa-prescription', 'label' => 'Orders', 'url' => 'orders.php', 'permission' => 'screens.orders'],
-    'results' => ['icon' => 'fa-flask', 'label' => 'Results Review', 'url' => 'results.php', 'permission' => 'lab.view_results'],
-    'notes' => ['icon' => 'fa-file-medical', 'label' => 'Notes', 'url' => 'notes.php', 'permission' => 'notes.view'],
-    'medications' => ['icon' => 'fa-pills', 'label' => 'Medications', 'url' => 'medications.php', 'permission' => 'medications.view'],
-    'flowsheets' => ['icon' => 'fa-table', 'label' => 'Flowsheets', 'url' => 'flowsheets.php', 'permission' => 'notes.view'],
-    'history' => ['icon' => 'fa-history', 'label' => 'History', 'url' => 'history.php', 'permission' => 'screens.patient_chart'],
-    'demographics' => ['icon' => 'fa-id-card', 'label' => 'Demographics', 'url' => 'demographics.php', 'permission' => 'screens.patient_chart'],
-    'calculator' => ['icon' => 'fa-calculator', 'label' => 'Calculator', 'url' => 'calculator.php', 'permission' => null],
-    'help' => ['icon' => 'fa-question-circle', 'label' => 'Help', 'url' => 'help.php', 'permission' => null],
+// Patient chart sidebar items (these link to tabs within patient-chart.php)
+$patient_sidebar_items = [
+    'summary' => ['icon' => 'fa-clipboard', 'label' => 'Summary'],
+    'chart-review' => ['icon' => 'fa-file-medical', 'label' => 'Chart Review'],
+    'results' => ['icon' => 'fa-flask', 'label' => 'Results'],
+    'work-list' => ['icon' => 'fa-tasks', 'label' => 'Work List'],
+    'mar' => ['icon' => 'fa-pills', 'label' => 'MAR'],
+    'flowsheets' => ['icon' => 'fa-chart-line', 'label' => 'Flowsheets'],
+    'intake-output' => ['icon' => 'fa-balance-scale', 'label' => 'Intake/O'],
+    'notes' => ['icon' => 'fa-sticky-note', 'label' => 'Notes'],
+    'education' => ['icon' => 'fa-graduation-cap', 'label' => 'Education'],
+    'care-plan' => ['icon' => 'fa-clipboard-list', 'label' => 'Care Plan'],
+    'orders' => ['icon' => 'fa-prescription', 'label' => 'Orders'],
+    'demographics' => ['icon' => 'fa-id-card', 'label' => 'Demographics'],
+    'history' => ['icon' => 'fa-history', 'label' => 'History'],
 ];
+
+// More menu items with submenus (Epic Hyperspace style)
+$more_menu_items = [
+    ['label' => 'Summary', 'tab' => 'summary', 'icon' => 'fa-clipboard'],
+    ['label' => 'Chart Review', 'tab' => 'chart-review', 'icon' => 'fa-file-medical'],
+    ['label' => 'Results', 'tab' => 'results', 'icon' => 'fa-flask', 'submenu' => [
+        ['label' => 'All Results', 'tab' => 'results'],
+        ['label' => 'Lab', 'tab' => 'results&sub=lab'],
+        ['label' => 'Imaging', 'tab' => 'results&sub=imaging'],
+    ]],
+    ['label' => 'Work List', 'tab' => 'work-list', 'icon' => 'fa-tasks'],
+    ['label' => 'MAR', 'tab' => 'mar', 'icon' => 'fa-pills'],
+    ['label' => 'Flowsheets', 'tab' => 'flowsheets', 'icon' => 'fa-chart-line'],
+    ['label' => 'Intake/Output', 'tab' => 'intake-output', 'icon' => 'fa-balance-scale'],
+    ['label' => 'Notes', 'tab' => 'notes', 'icon' => 'fa-sticky-note', 'submenu' => [
+        ['label' => 'All Notes', 'tab' => 'notes'],
+        ['label' => 'Progress Notes', 'tab' => 'notes&sub=progress'],
+        ['label' => 'H&P', 'tab' => 'notes&sub=hp'],
+    ]],
+    ['label' => 'Education', 'tab' => 'education', 'icon' => 'fa-graduation-cap'],
+    ['label' => 'Care Plan', 'tab' => 'care-plan', 'icon' => 'fa-clipboard-list'],
+    ['label' => 'Orders', 'tab' => 'orders', 'icon' => 'fa-prescription'],
+    ['label' => 'Demographics', 'tab' => 'demographics', 'icon' => 'fa-id-card'],
+    ['label' => 'History', 'tab' => 'history', 'icon' => 'fa-history'],
+    ['divider' => true],
+    ['label' => 'Customize...', 'action' => 'customize', 'icon' => 'fa-cog'],
+];
+
+// Get current patient ID and tab for sidebar
+$sidebar_patient_id = $_GET['id'] ?? null;
+$current_tab = $_GET['tab'] ?? 'summary';
 
 // Function to check if user has permission
 function hasNavPermission($permission) {
     global $current_user, $is_admin;
     if ($is_admin || $permission === null) return true;
-    
-    // Use the granular permissions system if available
     if (function_exists('hasPermission')) {
         return hasPermission($permission);
     }
-    
-    // Fallback: allow all permissions
     return true;
 }
 ?>
@@ -230,85 +256,83 @@ function hasNavPermission($permission) {
             border-left: none;
         }
         
-        /* More Menu Popup */
+        /* More Menu - Windows Context Menu Style */
         .more-menu {
             position: fixed;
-            bottom: 60px;
-            left: 57px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            min-width: 280px;
-            max-height: 70vh;
-            overflow-y: auto;
+            bottom: 50px;
+            left: 60px;
+            background: #f0f0f0;
+            border: 1px solid #999;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.25);
+            min-width: 180px;
             z-index: 2000;
             display: none;
+            padding: 2px 0;
+            font-size: 12px;
         }
         
         .more-menu.show {
             display: block;
         }
         
-        .more-menu-header {
-            background: linear-gradient(to bottom, #1a4a5e, #0d3545);
-            color: white;
-            padding: 12px 15px;
-            font-weight: bold;
-            border-radius: 8px 8px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .more-menu-header .close-btn {
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: 18px;
-        }
-        
-        .more-menu-section {
-            padding: 8px 12px 4px;
-            font-size: 10px;
-            color: #888;
-            text-transform: uppercase;
-            font-weight: 600;
-        }
-        
         .more-menu-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px 15px;
-            color: #333;
-            cursor: pointer;
+            gap: 8px;
+            padding: 4px 20px 4px 8px;
+            color: #000;
+            cursor: default;
             text-decoration: none;
+            position: relative;
         }
         
         .more-menu-item:hover {
-            background: #f0f4f8;
+            background: #0078d4;
+            color: white;
             text-decoration: none;
         }
         
+        .more-menu-item:hover i {
+            color: white;
+        }
+        
         .more-menu-item i {
-            width: 20px;
+            width: 16px;
             text-align: center;
-            color: #1a4a5e;
+            color: #333;
+            font-size: 11px;
         }
         
-        .more-menu-item .favorite-btn {
+        .more-menu-item .submenu-arrow {
             margin-left: auto;
-            color: #ccc;
-            cursor: pointer;
+            font-size: 8px;
         }
         
-        .more-menu-item .favorite-btn:hover {
-            color: #f0a030;
+        .more-menu-divider {
+            height: 1px;
+            background: #ccc;
+            margin: 2px 2px;
         }
         
-        .more-menu-item .favorite-btn.is-favorite {
-            color: #f0a030;
+        /* Submenu */
+        .more-menu-item .submenu {
+            display: none;
+            position: absolute;
+            left: 100%;
+            top: -2px;
+            background: #f0f0f0;
+            border: 1px solid #999;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.25);
+            min-width: 140px;
+            padding: 2px 0;
+        }
+        
+        .more-menu-item:hover > .submenu {
+            display: block;
+        }
+        
+        .submenu .more-menu-item {
+            padding: 4px 15px 4px 8px;
         }
         
         /* Main Content Area */
@@ -685,9 +709,97 @@ function hasNavPermission($permission) {
         .btn-secondary:hover {
             background: #5a6268;
         }
+        
+        /* Modal Overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.show {
+            display: flex;
+        }
+        .modal-dialog {
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            width: 90%;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: #1a4a5e;
+            color: white;
+        }
+        .modal-header h3 {
+            margin: 0;
+            font-size: 14px;
+        }
+        .modal-header .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        .modal-body {
+            padding: 15px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .modal-body p {
+            margin: 0 0 10px 0;
+            color: #666;
+            font-size: 12px;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 12px 15px;
+            border-top: 1px solid #ddd;
+        }
+        
+        /* Sidebar Items List */
+        .sidebar-items-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .sidebar-item-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .sidebar-item-option:hover {
+            background: #f0f0f0;
+        }
+        .sidebar-item-option input[type="checkbox"] {
+            margin: 0;
+        }
+        .sidebar-item-option i {
+            width: 20px;
+            text-align: center;
+            color: #1a4a5e;
+        }
     </style>
 </head>
-<body class="<?php echo !empty($open_patients) ? 'has-patient-tabs' : ''; ?>">
+<body class="<?php echo !empty($open_patients) ? 'has-patient-tabs' : ''; ?> <?php echo $show_sidebar ? 'has-sidebar' : ''; ?>">
     <div class="app-layout">
         <!-- Main Header Bar -->
         <header class="openspace-header">
@@ -723,10 +835,24 @@ function hasNavPermission($permission) {
                 <input type="text" placeholder="Search..." id="globalSearch" onkeypress="handleGlobalSearch(event)">
             </div>
             
-            <button class="toolbar-btn" onclick="showPatientSearch()" title="Find Patient">
-                <i class="fas fa-search icon"></i>
-                <span>Find Patient</span>
-            </button>
+            <div class="header-toolbar">
+                <a href="patients.php" class="toolbar-btn" title="Patient Lists">
+                    <i class="fas fa-users"></i>
+                    <span>Patient Lists</span>
+                </a>
+                <a href="schedule.php" class="toolbar-btn" title="Schedule">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Schedule</span>
+                </a>
+                <a href="inbox.php" class="toolbar-btn" title="In Basket">
+                    <i class="fas fa-inbox"></i>
+                    <span>In Basket</span>
+                </a>
+                <button class="toolbar-btn" onclick="showPatientSearch()" title="Find Patient">
+                    <i class="fas fa-search"></i>
+                    <span>Find Patient</span>
+                </button>
+            </div>
             
             <div class="header-user">
                 <?php if ($current_user): ?>
@@ -771,18 +897,19 @@ function hasNavPermission($permission) {
         <?php endif; ?>
         
         <div class="app-body">
-            <?php if ($show_sidebar): ?>
-            <!-- Left Sidebar Navigation (Patient Pages Only) -->
+            <?php if ($show_sidebar && $sidebar_patient_id): ?>
+            <!-- Left Sidebar Navigation (Patient Chart Only) -->
             <nav class="left-sidebar">
                 <div class="sidebar-nav">
                     <?php 
-                    // Show favorited items first
                     foreach ($sidebar_favorites as $key):
-                        if (isset($all_nav_items[$key]) && hasNavPermission($all_nav_items[$key]['permission'])):
-                            $item = $all_nav_items[$key];
-                            $is_active = ($current_page === str_replace('.php', '', $item['url']));
+                        if (isset($patient_sidebar_items[$key])):
+                            $item = $patient_sidebar_items[$key];
+                            $is_active = ($current_tab === $key);
                     ?>
-                    <a href="<?php echo $item['url']; ?>" class="nav-item <?php echo $is_active ? 'active' : ''; ?>" title="<?php echo $item['label']; ?>">
+                    <a href="patient-chart.php?id=<?php echo $sidebar_patient_id; ?>&tab=<?php echo $key; ?>" 
+                       class="nav-item <?php echo $is_active ? 'active' : ''; ?>" 
+                       title="<?php echo $item['label']; ?>">
                         <i class="fas <?php echo $item['icon']; ?> nav-icon"></i>
                         <span class="nav-label"><?php echo $item['label']; ?></span>
                     </a>
@@ -793,37 +920,40 @@ function hasNavPermission($permission) {
                 </div>
                 
                 <div class="nav-more">
-                    <div class="nav-item" onclick="toggleMoreMenu()" title="More options">
-                        <i class="fas fa-ellipsis-h nav-icon"></i>
+                    <div class="nav-item" onclick="toggleMoreMenu(event)" title="More">
+                        <i class="fas fa-chevron-right nav-icon"></i>
                         <span class="nav-label">More</span>
                     </div>
                 </div>
             </nav>
             
-            <!-- More Menu Popup -->
+            <!-- More Menu - Context Menu Style -->
             <div class="more-menu" id="moreMenu">
-                <div class="more-menu-header">
-                    <span>All Activities</span>
-                    <button class="close-btn" onclick="closeMoreMenu()">×</button>
-                </div>
-                <div class="more-menu-section">Clinical</div>
-                <?php foreach ($all_nav_items as $key => $item): 
-                    if (hasNavPermission($item['permission'])):
-                        $is_favorite = in_array($key, $sidebar_favorites);
-                ?>
-                <a href="<?php echo $item['url']; ?>" class="more-menu-item">
-                    <i class="fas <?php echo $item['icon']; ?>"></i>
-                    <span><?php echo $item['label']; ?></span>
-                    <span class="favorite-btn <?php echo $is_favorite ? 'is-favorite' : ''; ?>" 
-                          onclick="event.preventDefault(); toggleFavorite('<?php echo $key; ?>')" 
-                          title="<?php echo $is_favorite ? 'Remove from sidebar' : 'Add to sidebar'; ?>">
-                        <i class="fas fa-star"></i>
-                    </span>
-                </a>
-                <?php 
-                    endif;
-                endforeach; 
-                ?>
+                <?php foreach ($more_menu_items as $item): ?>
+                    <?php if (isset($item['divider'])): ?>
+                        <div class="more-menu-divider"></div>
+                    <?php elseif (isset($item['action'])): ?>
+                        <div class="more-menu-item" onclick="handleMenuAction('<?php echo $item['action']; ?>')">
+                            <i class="fas <?php echo $item['icon']; ?>"></i>
+                            <span><?php echo $item['label']; ?></span>
+                        </div>
+                    <?php else: ?>
+                        <div class="more-menu-item" onclick="navigateToTab('<?php echo $item['tab']; ?>')">
+                            <i class="fas <?php echo $item['icon']; ?>"></i>
+                            <span><?php echo $item['label']; ?></span>
+                            <?php if (isset($item['submenu'])): ?>
+                            <span class="submenu-arrow"><i class="fas fa-chevron-right"></i></span>
+                            <div class="submenu">
+                                <?php foreach ($item['submenu'] as $sub): ?>
+                                <div class="more-menu-item" onclick="event.stopPropagation(); navigateToTab('<?php echo $sub['tab']; ?>')">
+                                    <span><?php echo $sub['label']; ?></span>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
+                <?php endforeach; ?>
             </div>
             <?php endif; ?>
             
@@ -872,7 +1002,8 @@ function toggleUserMenu() {
 }
 
 // More menu toggle
-function toggleMoreMenu() {
+function toggleMoreMenu(event) {
+    if (event) event.stopPropagation();
     const menu = document.getElementById('moreMenu');
     menu.classList.toggle('show');
 }
@@ -881,16 +1012,89 @@ function closeMoreMenu() {
     document.getElementById('moreMenu').classList.remove('show');
 }
 
-// Toggle sidebar favorite
-function toggleFavorite(key) {
-    fetch('api/toggle-sidebar-favorite.php', {
+// Navigate to patient chart tab
+function navigateToTab(tab) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const patientId = urlParams.get('id');
+    if (patientId) {
+        window.location.href = 'patient-chart.php?id=' + patientId + '&tab=' + tab;
+    }
+    closeMoreMenu();
+}
+
+// Handle menu actions (Customize, etc.)
+function handleMenuAction(action) {
+    closeMoreMenu();
+    if (action === 'customize') {
+        // Open customize sidebar modal
+        openCustomizeSidebarModal();
+    }
+}
+
+// Open customize sidebar modal
+function openCustomizeSidebarModal() {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('customizeSidebarModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'customizeSidebarModal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-dialog" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h3>Customize Sidebar</h3>
+                    <button class="close-btn" onclick="closeCustomizeSidebarModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>Drag items to reorder. Check/uncheck to show/hide.</p>
+                    <div id="sidebarItemsList" class="sidebar-items-list"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeCustomizeSidebarModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveSidebarCustomization()">Save</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    // Populate items list
+    const itemsList = document.getElementById('sidebarItemsList');
+    const allItems = <?php echo json_encode($patient_sidebar_items); ?>;
+    const favorites = <?php echo json_encode($sidebar_favorites); ?>;
+    
+    let html = '';
+    for (const [key, item] of Object.entries(allItems)) {
+        const checked = favorites.includes(key) ? 'checked' : '';
+        html += `
+            <label class="sidebar-item-option">
+                <input type="checkbox" name="sidebar_item" value="${key}" ${checked}>
+                <i class="fas ${item.icon}"></i>
+                <span>${item.label}</span>
+            </label>
+        `;
+    }
+    itemsList.innerHTML = html;
+    
+    modal.classList.add('show');
+}
+
+function closeCustomizeSidebarModal() {
+    document.getElementById('customizeSidebarModal')?.classList.remove('show');
+}
+
+function saveSidebarCustomization() {
+    const checkboxes = document.querySelectorAll('#sidebarItemsList input[type="checkbox"]:checked');
+    const selectedItems = Array.from(checkboxes).map(cb => cb.value);
+    
+    fetch('api/update-sidebar-favorites.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: key })
+        body: JSON.stringify({ favorites: selectedItems })
     }).then(() => {
         window.location.reload();
     }).catch(err => {
-        console.error('Failed to toggle favorite:', err);
+        console.error('Failed to save sidebar customization:', err);
     });
 }
 
@@ -1016,135 +1220,4 @@ document.getElementById('patientSearchModal')?.addEventListener('click', functio
     }
 });
 </script>
-// Demo patients for search (in production, this would be an API call)
-const demoPatients = [
-    { id: 1, name: 'Smith, John', mrn: 'MRN000001', dob: '03/15/1955', room: '412-A' },
-    { id: 2, name: 'Johnson, Mary', mrn: 'MRN000002', dob: '07/22/1948', room: '415-B' },
-    { id: 3, name: 'Williams, Robert', mrn: 'MRN000003', dob: '11/08/1960', room: '420-A' },
-    { id: 4, name: 'Davis, Linda', mrn: 'MRN000004', dob: '02/14/1972', room: '418-A' },
-    { id: 5, name: 'Wilson, James', mrn: 'MRN000005', dob: '09/30/1945', room: '422-B' },
-];
 
-// Openspace menu toggle
-function toggleOpenspaceMenu() {
-    const menu = document.getElementById('openspaceMenu');
-    menu.classList.toggle('show');
-}
-
-// User menu toggle
-function toggleUserMenu() {
-    const menu = document.getElementById('userDropdown');
-    menu.classList.toggle('show');
-}
-
-// Close menus when clicking outside
-document.addEventListener('click', function(event) {
-    const openspaceWrapper = document.querySelector('.openspace-logo-wrapper');
-    if (openspaceWrapper && !openspaceWrapper.contains(event.target)) {
-        document.getElementById('openspaceMenu')?.classList.remove('show');
-    }
-    
-    const userDropdown = document.querySelector('.header-dropdown');
-    if (userDropdown && !userDropdown.contains(event.target)) {
-        document.getElementById('userDropdown')?.classList.remove('show');
-    }
-});
-
-// Global search
-function handleGlobalSearch(event) {
-    if (event.key === 'Enter') {
-        const query = document.getElementById('globalSearch').value;
-        if (query.trim()) {
-            window.location.href = 'search.php?q=' + encodeURIComponent(query);
-        }
-    }
-}
-
-// Patient Search Modal
-function showPatientSearch() {
-    document.getElementById('patientSearchModal').classList.add('show');
-    document.getElementById('patientSearchInput').focus();
-    searchPatients(''); // Show all initially
-}
-
-function hidePatientSearch() {
-    document.getElementById('patientSearchModal').classList.remove('show');
-    document.getElementById('patientSearchInput').value = '';
-}
-
-function searchPatients(query) {
-    const results = document.getElementById('patientSearchResults');
-    const filtered = demoPatients.filter(p => 
-        p.name.toLowerCase().includes(query.toLowerCase()) ||
-        p.mrn.toLowerCase().includes(query.toLowerCase())
-    );
-    
-    if (filtered.length === 0) {
-        results.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">No patients found</div>';
-        return;
-    }
-    
-    results.innerHTML = filtered.map(p => `
-        <div class="patient-search-item" onclick="addPatientTab(${p.id}, '${p.name}')">
-            <div class="patient-icon"><i class="fas fa-user"></i></div>
-            <div class="patient-info">
-                <strong>${p.name}</strong>
-                <span>${p.mrn} | DOB: ${p.dob} | Room: ${p.room}</span>
-            </div>
-        </div>
-    `).join('');
-}
-
-// Add patient to tabs and navigate
-function addPatientTab(patientId, patientName) {
-    // Store in session via AJAX, then navigate
-    fetch('api/add-patient-tab.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: patientId, name: patientName })
-    }).then(() => {
-        window.location.href = 'patient-chart.php?id=' + patientId;
-    }).catch(() => {
-        // If API fails, just navigate
-        window.location.href = 'patient-chart.php?id=' + patientId;
-    });
-}
-
-// Open patient chart
-function openPatient(patientId) {
-    window.location.href = 'patient-chart.php?id=' + patientId;
-}
-
-// Close patient tab
-function closePatientTab(patientId) {
-    fetch('api/close-patient-tab.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: patientId })
-    }).then(() => {
-        // If we're on that patient's chart, go home
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('id') == patientId) {
-            window.location.href = 'home.php';
-        } else {
-            window.location.reload();
-        }
-    }).catch(() => {
-        window.location.reload();
-    });
-}
-
-// Close modal on escape
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        hidePatientSearch();
-    }
-});
-
-// Close modal on background click
-document.getElementById('patientSearchModal')?.addEventListener('click', function(e) {
-    if (e.target === this) {
-        hidePatientSearch();
-    }
-});
-</script>

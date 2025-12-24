@@ -117,22 +117,6 @@ include 'includes/header.php';
         </div>
     </div>
 
-    <!-- Chart Navigation Tabs -->
-    <nav class="chart-nav">
-        <div class="chart-nav-tabs">
-            <?php foreach ($chart_tabs as $tab_id => $tab): 
-                $is_active = ($current_tab === $tab_id);
-                $special_class = isset($tab['special']) ? ' mar-tab' : '';
-            ?>
-            <a href="patient-chart.php?id=<?php echo $patient_id; ?>&tab=<?php echo $tab_id; ?>" 
-               class="chart-nav-tab<?php echo $is_active ? ' active' : ''; ?><?php echo $special_class; ?>">
-                <i class="fas <?php echo $tab['icon']; ?>"></i>
-                <?php echo htmlspecialchars($tab['label']); ?>
-            </a>
-            <?php endforeach; ?>
-        </div>
-    </nav>
-
     <!-- Sub Navigation (changes per tab) -->
     <div class="chart-subnav">
         <div class="subnav-tabs">

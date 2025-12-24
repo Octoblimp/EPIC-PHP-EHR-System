@@ -45,223 +45,41 @@ $action_colors = [
     'VERIFY' => '#20c997',
     'BACKUP' => '#007bff',
 ];
+
+// Include admin header
+include 'includes/admin-header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($page_title); ?></title>
-    <link rel="stylesheet" href="../assets/css/openspace.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f0f4f8;
-            min-height: 100vh;
-        }
-        .admin-header {
-            background: linear-gradient(to right, #1a4a5e, #0d3545);
-            color: white;
-            padding: 0 20px;
-            height: 55px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .admin-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 18px;
-            font-weight: 600;
-        }
-        .admin-nav {
-            display: flex;
-            gap: 5px;
-        }
-        .admin-nav a {
-            color: white;
-            text-decoration: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-        .admin-nav a:hover { background: rgba(255,255,255,0.1); }
-        .admin-nav a.active { background: rgba(255,255,255,0.2); }
-        .back-link {
-            color: white;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            padding: 8px 15px;
-            border-radius: 4px;
-        }
-        .back-link:hover { background: rgba(255,255,255,0.1); }
-        .content {
-            padding: 25px;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-        }
-        .page-header h1 {
-            font-size: 24px;
-            color: #1a4a5e;
-        }
-        .btn {
-            padding: 10px 18px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .btn-primary { background: #1a4a5e; color: white; }
-        .btn-secondary { background: #e0e0e0; color: #333; }
-        .filters {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .filter-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .filter-group label {
-            font-size: 13px;
-            color: #666;
-        }
-        .filter-input {
-            padding: 8px 12px;
-            border: 2px solid #d0d8e0;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-        .audit-table {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        .audit-table table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .audit-table th {
-            background: linear-gradient(to bottom, #1a4a5e, #0d3545);
-            color: white;
-            padding: 14px 15px;
-            text-align: left;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        .audit-table td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 13px;
-        }
-        .audit-table tr:hover {
-            background: #f8f9fa;
-        }
-        .action-badge {
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 500;
-            color: white;
-        }
-        .timestamp {
-            font-family: monospace;
-            font-size: 12px;
-            color: #666;
-        }
-        .user-link {
-            color: #1a4a5e;
-            text-decoration: none;
-        }
-        .user-link:hover {
-            text-decoration: underline;
-        }
-        .ip-address {
-            font-family: monospace;
-            font-size: 12px;
-            color: #888;
-        }
-        .pagination {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            padding: 20px;
-        }
-        .pagination button {
-            padding: 8px 15px;
-            border: 1px solid #ddd;
-            background: white;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .pagination button:hover {
-            background: #f0f0f0;
-        }
-        .pagination button.active {
-            background: #1a4a5e;
-            color: white;
-            border-color: #1a4a5e;
-        }
-        .stats-bar {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            margin-bottom: 25px;
-        }
-        .stat-card {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .stat-card .stat-value {
-            font-size: 28px;
-            font-weight: 700;
-            color: #1a4a5e;
-        }
-        .stat-card .stat-label {
-            font-size: 13px;
-            color: #666;
-            margin-top: 5px;
-        }
-    </style>
-</head>
-<body>
-    <header class="admin-header">
-        <div class="admin-logo">
-            <i class="fas fa-shield-alt"></i>
-            <span>Admin Panel</span>
-        </div>
-        <nav class="admin-nav">
-            <a href="index.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-            <a href="roles.php"><i class="fas fa-user-shield"></i> Roles</a>
-            <a href="users.php"><i class="fas fa-users"></i> Users</a>
-            <a href="audit.php" class="active"><i class="fas fa-clipboard-list"></i> Audit Log</a>
-        </nav>
-        <a href="../home.php" class="back-link"><i class="fas fa-arrow-left"></i> Back to EHR</a>
-    </header>
-    
-    <div class="content">
+<style>
+    /* Audit Log specific styles */
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+    .page-header h1 { font-size: 24px; color: #1a4a5e; }
+    .btn { padding: 10px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-primary { background: #1a4a5e; color: white; }
+    .btn-secondary { background: #e0e0e0; color: #333; }
+    .filters { display: flex; gap: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+    .filter-group { display: flex; align-items: center; gap: 8px; }
+    .filter-group label { font-size: 13px; color: #666; }
+    .filter-input { padding: 8px 12px; border: 2px solid #d0d8e0; border-radius: 4px; font-size: 13px; }
+    .audit-table { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+    .audit-table table { width: 100%; border-collapse: collapse; }
+    .audit-table th { background: linear-gradient(to bottom, #1a4a5e, #0d3545); color: white; padding: 14px 15px; text-align: left; font-size: 13px; font-weight: 500; }
+    .audit-table td { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+    .audit-table tr:hover { background: #f8f9fa; }
+    .action-badge { padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 500; color: white; }
+    .timestamp { font-family: monospace; font-size: 12px; color: #666; }
+    .user-link { color: #1a4a5e; text-decoration: none; }
+    .user-link:hover { text-decoration: underline; }
+    .ip-address { font-family: monospace; font-size: 12px; color: #888; }
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 10px; padding: 20px; }
+    .pagination button { padding: 8px 15px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; }
+    .pagination button:hover { background: #f0f0f0; }
+    .pagination button.active { background: #1a4a5e; color: white; border-color: #1a4a5e; }
+    .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 25px; }
+    .stat-card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .stat-card .stat-value { font-size: 28px; font-weight: 700; color: #1a4a5e; }
+    .stat-card .stat-label { font-size: 13px; color: #666; margin-top: 5px; }
+</style>
+
         <div class="page-header">
             <h1><i class="fas fa-clipboard-list"></i> Audit Log</h1>
             <button class="btn btn-primary" onclick="exportAuditLog()">
@@ -365,7 +183,6 @@ $action_colors = [
             <button>50</button>
             <button>Next &raquo;</button>
         </div>
-    </div>
 
     <script>
         function applyFilters() {
@@ -376,5 +193,4 @@ $action_colors = [
             alert('Exporting audit log to CSV... (Demo)');
         }
     </script>
-</body>
-</html>
+<?php include 'includes/admin-footer.php'; ?>

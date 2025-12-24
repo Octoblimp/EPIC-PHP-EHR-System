@@ -66,300 +66,68 @@ $users = array_filter($all_users, function($u) use ($search, $role_filter, $stat
 // Get unique roles for filter dropdown
 $roles = array_unique(array_column($all_users, 'role'));
 sort($roles);
+
+// Include admin header
+include 'includes/admin-header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($page_title); ?></title>
-    <link rel="stylesheet" href="../assets/css/openspace.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f0f4f8;
-            min-height: 100vh;
-        }
-        .admin-header {
-            background: linear-gradient(to right, #1a4a5e, #0d3545);
-            color: white;
-            padding: 0 20px;
-            height: 55px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .admin-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 18px;
-            font-weight: 600;
-        }
-        .admin-nav {
-            display: flex;
-            gap: 5px;
-        }
-        .admin-nav a {
-            color: white;
-            text-decoration: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-        .admin-nav a:hover { background: rgba(255,255,255,0.1); }
-        .admin-nav a.active { background: rgba(255,255,255,0.2); }
-        .back-link {
-            color: white;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            padding: 8px 15px;
-            border-radius: 4px;
-        }
-        .back-link:hover { background: rgba(255,255,255,0.1); }
-        .content {
-            padding: 25px;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-        }
-        .page-header h1 {
-            font-size: 24px;
-            color: #1a4a5e;
-        }
-        .btn {
-            padding: 10px 18px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .btn-primary { background: #1a4a5e; color: white; }
-        .btn-primary:hover { background: #0d3545; }
-        .btn-secondary { background: #e0e0e0; color: #333; }
-        .btn-sm { padding: 6px 12px; font-size: 12px; }
-        .btn-danger { background: #dc3545; color: white; }
-        .toolbar {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            align-items: center;
-        }
-        .search-box {
-            flex: 1;
-            max-width: 300px;
-            position: relative;
-        }
-        .search-box input {
-            width: 100%;
-            padding: 10px 15px 10px 40px;
-            border: 2px solid #d0d8e0;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .search-box i {
-            position: absolute;
-            left: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #888;
-        }
-        .filter-select {
-            padding: 10px 15px;
-            border: 2px solid #d0d8e0;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .users-table {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        .users-table table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .users-table th {
-            background: linear-gradient(to bottom, #1a4a5e, #0d3545);
-            color: white;
-            padding: 14px 15px;
-            text-align: left;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        .users-table td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 13px;
-        }
-        .users-table tr:hover {
-            background: #f8f9fa;
-        }
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .user-avatar {
-            width: 36px;
-            height: 36px;
-            background: #e8f0f4;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #1a4a5e;
-        }
-        .user-name {
-            font-weight: 500;
-            color: #333;
-        }
-        .user-username {
-            font-size: 12px;
-            color: #888;
-        }
-        .status-badge {
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 500;
-        }
-        .status-active { background: #d4edda; color: #155724; }
-        .status-inactive { background: #f8d7da; color: #721c24; }
-        .role-badge {
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 11px;
-            background: #e8f0f4;
-            color: #1a4a5e;
-        }
-        .actions { display: flex; gap: 5px; }
-        .action-btn {
-            padding: 5px 10px;
-            border: none;
-            background: #f0f0f0;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        .action-btn:hover { background: #e0e0e0; }
-        .action-btn.edit { color: #1a4a5e; }
-        .action-btn.delete { color: #dc3545; }
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-overlay.show { display: flex; }
-        .modal {
-            background: white;
-            border-radius: 8px;
-            width: 500px;
-            max-height: 80vh;
-            overflow: hidden;
-        }
-        .modal-header {
-            background: linear-gradient(to bottom, #1a4a5e, #0d3545);
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .modal-header h3 { margin: 0; font-size: 16px; }
-        .close-modal {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-        }
-        .modal-body { padding: 20px; }
-        .modal-footer {
-            padding: 15px 20px;
-            background: #f5f5f5;
-            border-top: 1px solid #ddd;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-        .form-group { margin-bottom: 15px; }
-        .form-group label {
-            display: block;
-            font-weight: 500;
-            margin-bottom: 5px;
-            font-size: 13px;
-        }
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 10px 12px;
-            border: 2px solid #d0d8e0;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-        .filter-form {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            flex: 1;
-        }
-        .results-count {
-            font-size: 13px;
-            color: #666;
-            margin-left: auto;
-        }
-        .no-results {
-            padding: 40px;
-            text-align: center;
-            color: #888;
-        }
-        .no-results i {
-            font-size: 48px;
-            margin-bottom: 15px;
-            opacity: 0.5;
-        }
-    </style>
-</head>
-<body>
-    <header class="admin-header">
-        <div class="admin-logo">
-            <i class="fas fa-shield-alt"></i>
-            <span>Admin Panel</span>
-        </div>
-        <nav class="admin-nav">
-            <a href="index.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-            <a href="roles.php"><i class="fas fa-user-shield"></i> Roles</a>
-            <a href="users.php" class="active"><i class="fas fa-users"></i> Users</a>
-            <a href="audit.php"><i class="fas fa-clipboard-list"></i> Audit Log</a>
-        </nav>
-        <a href="../home.php" class="back-link"><i class="fas fa-arrow-left"></i> Back to EHR</a>
-    </header>
-    
-    <div class="content">
+<style>
+    /* User Management specific styles */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+    }
+    .page-header h1 { font-size: 24px; color: #1a4a5e; display: flex; align-items: center; gap: 10px; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+    .filter-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .search-box { position: relative; }
+    .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #888; }
+    .search-box input { padding: 10px 10px 10px 38px; border: 2px solid #d0d8e0; border-radius: 6px; width: 250px; }
+    .filter-select { padding: 10px 15px; border: 2px solid #d0d8e0; border-radius: 6px; }
+    .results-count { color: #666; font-size: 13px; }
+    .users-table { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+    .users-table table { width: 100%; border-collapse: collapse; }
+    .users-table th { background: #f5f8fa; text-align: left; padding: 15px; font-weight: 600; color: #1a4a5e; border-bottom: 2px solid #e0e0e0; }
+    .users-table td { padding: 15px; border-bottom: 1px solid #f0f0f0; }
+    .users-table tr:hover { background: #fafbfc; }
+    .user-info { display: flex; align-items: center; gap: 12px; }
+    .user-avatar { width: 40px; height: 40px; background: #1a4a5e; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+    .user-name { font-weight: 500; }
+    .user-username { font-size: 12px; color: #888; }
+    .role-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .role-badge.admin { background: #fce4ec; color: #c2185b; }
+    .role-badge.physician { background: #e3f2fd; color: #1565c0; }
+    .role-badge.nurse { background: #e8f5e9; color: #2e7d32; }
+    .role-badge.pharmacist { background: #fff3e0; color: #ef6c00; }
+    .role-badge.default { background: #f5f5f5; color: #666; }
+    .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .status-badge.active { background: #e8f5e9; color: #2e7d32; }
+    .status-badge.inactive { background: #f5f5f5; color: #888; }
+    .action-buttons { display: flex; gap: 8px; }
+    .action-buttons button { padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    .btn-edit { background: #e3f2fd; color: #1565c0; }
+    .btn-reset { background: #fff3e0; color: #ef6c00; }
+    .btn-delete { background: #ffebee; color: #c62828; }
+    .btn { padding: 10px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-primary { background: #1a4a5e; color: white; }
+    .btn-secondary { background: #e0e0e0; color: #333; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+    .modal.show { display: flex; }
+    .modal-content { background: white; border-radius: 8px; width: 500px; max-width: 90%; max-height: 90vh; overflow: hidden; }
+    .modal-header { background: linear-gradient(to bottom, #1a4a5e, #0d3545); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h2 { margin: 0; font-size: 16px; }
+    .close-btn { background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
+    .modal-body { padding: 20px; max-height: 60vh; overflow-y: auto; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; font-weight: 500; color: #333; }
+    .form-group input, .form-group select { width: 100%; padding: 10px; border: 2px solid #d0d8e0; border-radius: 4px; font-size: 14px; }
+    .modal-footer { padding: 15px 20px; background: #f5f8fa; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end; gap: 10px; }
+    .no-results { text-align: center; padding: 60px 20px; color: #888; }
+    .no-results i { font-size: 48px; margin-bottom: 15px; opacity: 0.5; }
+</style>
+
         <div class="page-header">
             <h1><i class="fas fa-users"></i> User Management</h1>
             <button class="btn btn-primary" onclick="openAddUserModal()">
@@ -574,5 +342,4 @@ sort($roles);
             if (e.target === this) closeModal();
         });
     </script>
-</body>
-</html>
+<?php include 'includes/admin-footer.php'; ?>

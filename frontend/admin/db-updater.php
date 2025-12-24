@@ -246,290 +246,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 }
 
 $pending_count = count(array_filter($migrations, fn($m) => $m['status'] === 'pending'));
+
+// Include admin header
+include 'includes/admin-header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($page_title); ?></title>
-    <link rel="stylesheet" href="../assets/css/openspace.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f0f4f8;
-            margin: 0;
-            padding: 0;
-        }
-        
-        .updater-header {
-            background: linear-gradient(to right, #1a4a5e, #0d3545);
-            color: white;
-            padding: 15px 25px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .updater-header h1 {
-            margin: 0;
-            font-size: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .back-btn {
-            color: white;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 15px;
-            border-radius: 4px;
-            background: rgba(255,255,255,0.1);
-        }
-        
-        .back-btn:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        
-        .updater-content {
-            max-width: 1000px;
-            margin: 30px auto;
-            padding: 0 20px;
-        }
-        
-        .status-banner {
-            background: white;
-            border-radius: 8px;
-            padding: 20px 25px;
-            margin-bottom: 25px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .status-info h2 {
-            margin: 0 0 5px;
-            font-size: 18px;
-            color: #333;
-        }
-        
-        .status-info p {
-            margin: 0;
-            color: #666;
-        }
-        
-        .status-badge {
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 13px;
-        }
-        
-        .status-badge.up-to-date {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .status-badge.pending {
-            background: #fff3cd;
-            color: #856404;
-        }
-        
-        .run-all-btn {
-            padding: 10px 20px;
-            background: #1a4a5e;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .run-all-btn:hover {
-            background: #0d3545;
-        }
-        
-        .run-all-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        .alert {
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .alert-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-        
-        .migrations-list {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            overflow: hidden;
-        }
-        
-        .migrations-header {
-            padding: 15px 25px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #eee;
-            font-weight: 600;
-            color: #333;
-        }
-        
-        .migration-item {
-            padding: 20px 25px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            align-items: flex-start;
-            gap: 20px;
-        }
-        
-        .migration-item:last-child {
-            border-bottom: none;
-        }
-        
-        .migration-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        
-        .migration-icon.applied {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .migration-icon.pending {
-            background: #fff3cd;
-            color: #856404;
-        }
-        
-        .migration-info {
-            flex: 1;
-        }
-        
-        .migration-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 5px;
-        }
-        
-        .migration-version {
-            font-weight: 600;
-            color: #333;
-        }
-        
-        .migration-name {
-            color: #666;
-        }
-        
-        .migration-date {
-            color: #888;
-            font-size: 12px;
-        }
-        
-        .migration-description {
-            color: #555;
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-        
-        .migration-status {
-            font-size: 12px;
-            color: #888;
-        }
-        
-        .migration-status.applied {
-            color: #155724;
-        }
-        
-        .migration-action {
-            flex-shrink: 0;
-        }
-        
-        .apply-btn {
-            padding: 8px 16px;
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-        }
-        
-        .apply-btn:hover {
-            background: #218838;
-        }
-        
-        .applied-badge {
-            padding: 6px 12px;
-            background: #e8f5e9;
-            color: #2e7d32;
-            border-radius: 4px;
-            font-size: 12px;
-        }
-    </style>
-</head>
-<body>
-    <header class="updater-header">
-        <h1><i class="fas fa-database"></i> Database Updater</h1>
-        <a href="index.php" class="back-btn">
-            <i class="fas fa-arrow-left"></i> Back to Admin
-        </a>
-    </header>
-    
-    <div class="updater-content">
+<style>
+    /* Database Updater specific styles */
+    .status-banner { background: white; border-radius: 8px; padding: 20px 25px; margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; }
+    .status-info h2 { margin: 0 0 5px; font-size: 18px; color: #333; display: flex; align-items: center; gap: 10px; }
+    .status-info p { margin: 0; color: #666; }
+    .status-badge { padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 13px; }
+    .status-badge.up-to-date { background: #d4edda; color: #155724; }
+    .status-badge.pending { background: #fff3cd; color: #856404; }
+    .run-all-btn { padding: 10px 20px; background: #1a4a5e; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+    .run-all-btn:hover { background: #0d3545; }
+    .alert { padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+    .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    .migrations-list { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; }
+    .migrations-header { padding: 15px 25px; background: #f8f9fa; border-bottom: 1px solid #eee; font-weight: 600; color: #333; display: flex; align-items: center; gap: 10px; }
+    .migration-item { display: flex; align-items: flex-start; padding: 20px 25px; border-bottom: 1px solid #f0f0f0; }
+    .migration-item:last-child { border-bottom: none; }
+    .migration-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0; }
+    .migration-icon.applied { background: #d4edda; color: #155724; }
+    .migration-icon.pending { background: #fff3cd; color: #856404; }
+    .migration-info { flex: 1; }
+    .migration-header { display: flex; align-items: center; gap: 12px; margin-bottom: 5px; }
+    .migration-version { background: #1a4a5e; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: 600; }
+    .migration-name { font-weight: 600; color: #333; }
+    .migration-date { color: #888; font-size: 12px; }
+    .migration-description { color: #666; font-size: 13px; margin-bottom: 8px; }
+    .migration-status { font-size: 12px; }
+    .migration-status.applied { color: #155724; }
+    .migration-status.pending { color: #856404; }
+    .migration-action { margin-left: 20px; }
+    .apply-btn { padding: 8px 16px; background: #1a4a5e; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+    .apply-btn:hover { background: #0d3545; }
+    .applied-badge { padding: 6px 12px; background: #d4edda; color: #155724; border-radius: 4px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+</style>
+
         <?php if ($message): ?>
         <div class="alert alert-<?php echo $message_type; ?>">
-            <i class="fas <?php echo $message_type === 'success' ? 'fa-check-circle' : 'fa-info-circle'; ?>"></i>
+            <i class="fas fa-<?php echo $message_type === 'success' ? 'check-circle' : 'info-circle'; ?>"></i>
             <?php echo htmlspecialchars($message); ?>
         </div>
         <?php endif; ?>
         
         <div class="status-banner">
             <div class="status-info">
-                <h2>Database Status</h2>
-                <p>
-                    <?php if ($pending_count > 0): ?>
-                    <?php echo $pending_count; ?> migration(s) pending
-                    <?php else: ?>
-                    All migrations applied
-                    <?php endif; ?>
-                </p>
+                <h2><i class="fas fa-database"></i> Database Updates</h2>
+                <p>Current database version: <strong>v<?php echo $migrations[0]['version']; ?></strong></p>
             </div>
-            
             <?php if ($pending_count > 0): ?>
             <form method="POST" style="display: inline;">
                 <input type="hidden" name="action" value="run_all">
                 <button type="submit" class="run-all-btn">
-                    <i class="fas fa-play"></i> Run All Pending
+                    <i class="fas fa-play"></i> Run All Pending (<?php echo $pending_count; ?>)
                 </button>
             </form>
             <?php else: ?>
@@ -585,5 +357,5 @@ $pending_count = count(array_filter($migrations, fn($m) => $m['status'] === 'pen
             <?php endforeach; ?>
         </div>
     </div>
-</body>
-</html>
+
+<?php include 'includes/admin-footer.php'; ?>
