@@ -33,6 +33,7 @@ $system_settings = $_SESSION['system_settings'] ?? [
     'enable_dark_mode' => true,
     'enable_patient_photos' => true,
     'enable_two_factor' => false,
+    'patient_record_protection' => false,
     'session_timeout' => 30,
     'password_expiry' => 90,
     'max_login_attempts' => 5,
@@ -55,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $system_settings['enable_dark_mode'] = isset($_POST['enable_dark_mode']);
             $system_settings['enable_patient_photos'] = isset($_POST['enable_patient_photos']);
             $system_settings['enable_two_factor'] = isset($_POST['enable_two_factor']);
+            $system_settings['patient_record_protection'] = isset($_POST['patient_record_protection']);
             $success_message = 'Feature settings saved successfully.';
             break;
         case 'save_security':
@@ -828,6 +830,19 @@ $stats = [
                                 <div class="setting-control">
                                     <label class="switch">
                                         <input type="checkbox" name="enable_two_factor" <?php echo $system_settings['enable_two_factor'] ? 'checked' : ''; ?>>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="setting-row">
+                                <div class="setting-label">
+                                    <strong>Patient Record Protection</strong>
+                                    <span>Require DOB verification to access patient records (HIPAA)</span>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="switch">
+                                        <input type="checkbox" name="patient_record_protection" <?php echo ($system_settings['patient_record_protection'] ?? false) ? 'checked' : ''; ?>>
                                         <span class="slider"></span>
                                     </label>
                                 </div>

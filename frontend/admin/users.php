@@ -21,7 +21,7 @@ if (!$is_admin) {
 }
 
 // Demo users data
-$users = [
+$all_users = [
     ['id' => 1, 'username' => 'admin', 'name' => 'System Administrator', 'email' => 'admin@hospital.org', 'role' => 'Administrator', 'status' => 'Active', 'last_login' => '2025-01-10 08:30:00'],
     ['id' => 2, 'username' => 'drsmith', 'name' => 'Dr. John Smith', 'email' => 'jsmith@hospital.org', 'role' => 'Physician', 'status' => 'Active', 'last_login' => '2025-01-10 07:15:00'],
     ['id' => 3, 'username' => 'nursejones', 'name' => 'Sarah Jones, RN', 'email' => 'sjones@hospital.org', 'role' => 'Nurse', 'status' => 'Active', 'last_login' => '2025-01-10 06:45:00'],
@@ -32,6 +32,40 @@ $users = [
     ['id' => 8, 'username' => 'radtech1', 'name' => 'Robert Martinez', 'email' => 'rmartinez@hospital.org', 'role' => 'Rad Tech', 'status' => 'Active', 'last_login' => '2025-01-08 11:45:00'],
     ['id' => 9, 'username' => 'regclerk', 'name' => 'Amanda White', 'email' => 'awhite@hospital.org', 'role' => 'Registration', 'status' => 'Inactive', 'last_login' => '2024-12-20 09:15:00'],
 ];
+
+// Get filter parameters
+$search = trim($_GET['search'] ?? '');
+$role_filter = $_GET['role'] ?? '';
+$status_filter = $_GET['status'] ?? '';
+
+// Apply filters
+$users = array_filter($all_users, function($u) use ($search, $role_filter, $status_filter) {
+    // Search filter
+    if ($search) {
+        $search_lower = strtolower($search);
+        $matches_search = 
+            strpos(strtolower($u['name']), $search_lower) !== false ||
+            strpos(strtolower($u['username']), $search_lower) !== false ||
+            strpos(strtolower($u['email']), $search_lower) !== false;
+        if (!$matches_search) return false;
+    }
+    
+    // Role filter
+    if ($role_filter && $u['role'] !== $role_filter) {
+        return false;
+    }
+    
+    // Status filter  
+    if ($status_filter && $u['status'] !== $status_filter) {
+        return false;
+    }
+    
+    return true;
+});
+
+// Get unique roles for filter dropdown
+$roles = array_unique(array_column($all_users, 'role'));
+sort($roles);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -287,6 +321,27 @@ $users = [
             grid-template-columns: 1fr 1fr;
             gap: 15px;
         }
+        .filter-form {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex: 1;
+        }
+        .results-count {
+            font-size: 13px;
+            color: #666;
+            margin-left: auto;
+        }
+        .no-results {
+            padding: 40px;
+            text-align: center;
+            color: #888;
+        }
+        .no-results i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
     </style>
 </head>
 <body>
@@ -313,24 +368,34 @@ $users = [
         </div>
         
         <div class="toolbar">
-            <div class="search-box">
-                <i class="fas fa-search"></i>
-                <input type="text" placeholder="Search users..." id="userSearch" onkeyup="filterUsers()">
+            <form method="GET" class="filter-form" id="filterForm">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" name="search" placeholder="Search users..." id="userSearch" 
+                           value="<?php echo htmlspecialchars($search); ?>" onkeyup="debounceFilter()">
+                </div>
+                <select class="filter-select" name="role" id="roleFilter" onchange="submitFilter()">
+                    <option value="">All Roles</option>
+                    <?php foreach ($roles as $r): ?>
+                    <option value="<?php echo htmlspecialchars($r); ?>" <?php echo $role_filter === $r ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($r); ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+                <select class="filter-select" name="status" id="statusFilter" onchange="submitFilter()">
+                    <option value="">All Status</option>
+                    <option value="Active" <?php echo $status_filter === 'Active' ? 'selected' : ''; ?>>Active</option>
+                    <option value="Inactive" <?php echo $status_filter === 'Inactive' ? 'selected' : ''; ?>>Inactive</option>
+                </select>
+                <?php if ($search || $role_filter || $status_filter): ?>
+                <a href="users.php" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-times"></i> Clear Filters
+                </a>
+                <?php endif; ?>
+            </form>
+            <div class="results-count">
+                Showing <?php echo count($users); ?> of <?php echo count($all_users); ?> users
             </div>
-            <select class="filter-select" id="roleFilter" onchange="filterUsers()">
-                <option value="">All Roles</option>
-                <option value="Administrator">Administrator</option>
-                <option value="Physician">Physician</option>
-                <option value="Nurse">Nurse</option>
-                <option value="Pharmacist">Pharmacist</option>
-                <option value="Lab Tech">Lab Tech</option>
-                <option value="Registration">Registration</option>
-            </select>
-            <select class="filter-select" id="statusFilter" onchange="filterUsers()">
-                <option value="">All Status</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-            </select>
         </div>
         
         <div class="users-table">
@@ -447,22 +512,15 @@ $users = [
     </div>
 
     <script>
-        function filterUsers() {
-            const search = document.getElementById('userSearch').value.toLowerCase();
-            const roleFilter = document.getElementById('roleFilter').value;
-            const statusFilter = document.getElementById('statusFilter').value;
-            
-            document.querySelectorAll('#usersTableBody tr').forEach(row => {
-                const name = row.dataset.name;
-                const role = row.dataset.role;
-                const status = row.dataset.status;
-                
-                const matchSearch = name.includes(search);
-                const matchRole = !roleFilter || role === roleFilter;
-                const matchStatus = !statusFilter || status === statusFilter;
-                
-                row.style.display = matchSearch && matchRole && matchStatus ? '' : 'none';
-            });
+        let filterTimeout = null;
+        
+        function debounceFilter() {
+            clearTimeout(filterTimeout);
+            filterTimeout = setTimeout(submitFilter, 500);
+        }
+        
+        function submitFilter() {
+            document.getElementById('filterForm').submit();
         }
         
         function openAddUserModal() {
@@ -502,6 +560,14 @@ $users = [
                 alert('User deleted! (Demo)');
             }
         }
+        
+        // Handle enter key in search
+        document.getElementById('userSearch').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitFilter();
+            }
+        });
         
         // Close modal on background click
         document.getElementById('userModal').addEventListener('click', function(e) {

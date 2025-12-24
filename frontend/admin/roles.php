@@ -5,16 +5,19 @@
  */
 session_start();
 
-// Check authentication and admin permission
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['authenticated'])) {
-    header('Location: /login.php');
+// Check authentication
+if (!isset($_SESSION['authenticated']) || !$_SESSION['authenticated']) {
+    header('Location: ../login.php');
     exit;
 }
 
 // Check admin permission
-if (!in_array('admin.roles', $_SESSION['permissions'] ?? [])) {
-    http_response_code(403);
-    die('Access denied. You do not have permission to manage roles.');
+$user = $_SESSION['user'] ?? [];
+$is_admin = in_array(strtolower($user['role'] ?? ''), ['admin', 'administrator']);
+
+if (!$is_admin) {
+    header('Location: ../home.php');
+    exit;
 }
 
 require_once __DIR__ . '/../includes/config.php';
@@ -1023,6 +1026,244 @@ $pageTitle = 'Role & Permission Management';
                                 <div class="permission-description">Modify system settings and configuration</div>
                                 <div class="permission-tags">
                                     <span class="permission-tag critical">Critical</span>
+                                    <span class="permission-tag audit">Audited</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Screen Access -->
+                <div class="permission-category">
+                    <div class="category-header">
+                        <h3><i class="bi bi-window-stack"></i> Screen Access</h3>
+                        <button class="category-toggle" onclick="toggleCategory(this, 'screens')">Select All</button>
+                    </div>
+                    <div class="category-body">
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="screens.home">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">Home Dashboard</div>
+                                <div class="permission-code">screens.home</div>
+                                <div class="permission-description">Access the main home dashboard</div>
+                            </div>
+                        </div>
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="screens.schedule">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">Schedule</div>
+                                <div class="permission-code">screens.schedule</div>
+                                <div class="permission-description">Access the appointment schedule</div>
+                            </div>
+                        </div>
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="screens.patient_search">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">Patient Search</div>
+                                <div class="permission-code">screens.patient_search</div>
+                                <div class="permission-description">Access patient lookup/search</div>
+                                <div class="permission-tags">
+                                    <span class="permission-tag phi">PHI</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="screens.patient_chart">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">Patient Chart</div>
+                                <div class="permission-code">screens.patient_chart</div>
+                                <div class="permission-description">Access patient chart/demographics</div>
+                                <div class="permission-tags">
+                                    <span class="permission-tag phi">PHI</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="screens.inbox">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">In Basket / Inbox</div>
+                                <div class="permission-code">screens.inbox</div>
+                                <div class="permission-description">Access messaging and In Basket</div>
+                            </div>
+                        </div>
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="screens.orders">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">Orders</div>
+                                <div class="permission-code">screens.orders</div>
+                                <div class="permission-description">Access order entry and results</div>
+                                <div class="permission-tags">
+                                    <span class="permission-tag phi">PHI</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="screens.reports">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">Reports</div>
+                                <div class="permission-code">screens.reports</div>
+                                <div class="permission-description">Access clinical and administrative reports</div>
+                            </div>
+                        </div>
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="screens.billing">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">Billing</div>
+                                <div class="permission-code">screens.billing</div>
+                                <div class="permission-description">Access billing and claims screens</div>
+                            </div>
+                        </div>
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="screens.admin">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">Admin Panel</div>
+                                <div class="permission-code">screens.admin</div>
+                                <div class="permission-description">Access administrative dashboard</div>
+                                <div class="permission-tags">
+                                    <span class="permission-tag critical">Critical</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="screens.settings">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">User Settings</div>
+                                <div class="permission-code">screens.settings</div>
+                                <div class="permission-description">Access personal settings and profile</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lab & Results -->
+                <div class="permission-category">
+                    <div class="category-header">
+                        <h3><i class="bi bi-droplet"></i> Lab & Results</h3>
+                        <button class="category-toggle" onclick="toggleCategory(this, 'lab')">Select All</button>
+                    </div>
+                    <div class="category-body">
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="lab.view_results">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">View Lab Results</div>
+                                <div class="permission-code">lab.view_results</div>
+                                <div class="permission-description">View laboratory test results</div>
+                                <div class="permission-tags">
+                                    <span class="permission-tag phi">PHI</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="lab.order_tests">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">Order Lab Tests</div>
+                                <div class="permission-code">lab.order_tests</div>
+                                <div class="permission-description">Order laboratory tests</div>
+                                <div class="permission-tags">
+                                    <span class="permission-tag phi">PHI</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="lab.enter_results">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">Enter Lab Results</div>
+                                <div class="permission-code">lab.enter_results</div>
+                                <div class="permission-description">Enter and verify lab results</div>
+                                <div class="permission-tags">
+                                    <span class="permission-tag phi">PHI</span>
+                                    <span class="permission-tag audit">Audited</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="lab.manage_specimens">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">Manage Specimens</div>
+                                <div class="permission-code">lab.manage_specimens</div>
+                                <div class="permission-description">Track and manage lab specimens</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports & Analytics -->
+                <div class="permission-category">
+                    <div class="category-header">
+                        <h3><i class="bi bi-graph-up"></i> Reports & Analytics</h3>
+                        <button class="category-toggle" onclick="toggleCategory(this, 'reports')">Select All</button>
+                    </div>
+                    <div class="category-body">
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="reports.clinical">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">Clinical Reports</div>
+                                <div class="permission-code">reports.clinical</div>
+                                <div class="permission-description">Access clinical quality and outcome reports</div>
+                                <div class="permission-tags">
+                                    <span class="permission-tag phi">PHI</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="reports.operational">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">Operational Reports</div>
+                                <div class="permission-code">reports.operational</div>
+                                <div class="permission-description">Access scheduling and workflow reports</div>
+                            </div>
+                        </div>
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="reports.financial">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">Financial Reports</div>
+                                <div class="permission-code">reports.financial</div>
+                                <div class="permission-description">Access revenue and billing reports</div>
+                            </div>
+                        </div>
+                        <div class="permission-item">
+                            <div class="permission-checkbox">
+                                <input type="checkbox" checked data-permission="reports.export">
+                            </div>
+                            <div class="permission-info">
+                                <div class="permission-name">Export Data</div>
+                                <div class="permission-code">reports.export</div>
+                                <div class="permission-description">Export report data to CSV/Excel</div>
+                                <div class="permission-tags">
                                     <span class="permission-tag audit">Audited</span>
                                 </div>
                             </div>
