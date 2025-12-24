@@ -393,12 +393,16 @@ function hasNavPermission($permission) {
             flex-direction: column;
             background: #d8e0e8;
             min-width: 0;
+            min-height: 0;
         }
         
         .main-content {
             flex: 1;
             overflow: auto;
-            padding: 10px;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
         }
         
         /* Ensure app-body takes full height */
@@ -424,7 +428,7 @@ function hasNavPermission($permission) {
             padding: 0 8px;
             position: fixed;
             top: 28px;
-            left: 52px;
+            left: 0;
             right: 0;
             z-index: 999;
         }

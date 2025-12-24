@@ -343,14 +343,10 @@ a:hover {
     background: var(--patient-banner-bg);
     border-bottom: 2px solid var(--patient-banner-border);
     padding: 6px 10px;
-    position: fixed;
-    top: 54px;
-    left: 0;
-    right: 0;
-    z-index: 998;
     display: flex;
     align-items: center;
     gap: 15px;
+    flex-shrink: 0;
 }
 
 .patient-photo {
@@ -525,15 +521,11 @@ a:hover {
 .chart-subnav {
     background: #ffffff;
     border-bottom: 1px solid #d0d8e0;
-    position: fixed;
-    top: 148px;
-    left: 0;
-    right: 0;
-    z-index: 996;
     padding: 4px 8px;
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 .subnav-tabs {
@@ -584,13 +576,10 @@ a:hover {
    MAIN CONTENT AREA
    ================================================== */
 .chart-content {
-    position: fixed;
-    top: 175px;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    overflow: hidden;
+    flex: 1;
+    overflow: auto;
     display: flex;
+    min-height: 0;
 }
 
 /* Left Sidebar */
