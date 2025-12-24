@@ -48,10 +48,33 @@ $patient_name = ($patient['last_name'] ?? 'Unknown') . ', ' . ($patient['first_n
 $patient_age_sex = $age . ' y.o. ' . ($patient['gender'] ?? 'Unknown');
 $mrn = $patient['mrn'] ?? 'Unknown';
 
-// For the patient tabs bar
-$open_patients = [
-    ['id' => $patient_id, 'name' => $patient_name]
-];
+// Start session for patient tabs if not started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// Initialize open patients in session if not exists
+if (!isset($_SESSION['open_patients'])) {
+    $_SESSION['open_patients'] = [];
+}
+
+// Add current patient to open tabs if not already there
+$found = false;
+foreach ($_SESSION['open_patients'] as $p) {
+    if ($p['id'] == $patient_id) {
+        $found = true;
+        break;
+    }
+}
+if (!$found) {
+    $_SESSION['open_patients'][] = [
+        'id' => $patient_id,
+        'name' => $patient_name
+    ];
+}
+
+// Use session for open patients (don't override)
+$open_patients = $_SESSION['open_patients'];
 $current_patient = ['id' => $patient_id];
 
 // Chart tabs configuration
@@ -151,223 +174,6 @@ include 'includes/header.php';
 
     <!-- Main Content Area -->
     <div class="chart-content">
-        <!-- Left Sidebar -->
-        <aside class="chart-sidebar">
-            <!-- Patient Demographics -->
-            <div class="sidebar-section">
-                <div class="sidebar-header" onclick="toggleSidebarSection(this)">
-                    <span><i class="fas fa-user"></i> Patient Info</span>
-                    <i class="fas fa-chevron-down toggle-icon"></i>
-                </div>
-                <div class="sidebar-content">
-                    <div class="sidebar-item">
-                        <label>Age:</label>
-                        <span><?php echo $age; ?> years</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <label>Gender:</label>
-                        <span><?php echo htmlspecialchars($patient['gender'] ?? 'Unknown'); ?></span>
-                    </div>
-                    <div class="sidebar-item">
-                        <label>Height:</label>
-                        <span>5'10" (178 cm)</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <label>Weight:</label>
-                        <span>180 lbs (82 kg)</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <label>BMI:</label>
-                        <span>25.8</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <label>Language:</label>
-                        <span>English</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <label>Marital:</label>
-                        <span>Married</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Allergies -->
-            <div class="sidebar-section allergies-section">
-                <div class="sidebar-header" onclick="toggleSidebarSection(this)">
-                    <span><i class="fas fa-exclamation-triangle"></i> Allergies</span>
-                    <i class="fas fa-chevron-down toggle-icon"></i>
-                </div>
-                <div class="sidebar-content">
-                    <?php if (!empty($patient['allergies'])): 
-                        $allergies = is_array($patient['allergies']) ? $patient['allergies'] : [$patient['allergies']];
-                        foreach ($allergies as $allergy): ?>
-                    <div class="sidebar-item allergy-item">
-                        <i class="fas fa-circle" style="font-size: 6px;"></i>
-                        <?php echo htmlspecialchars($allergy); ?>
-                        <span class="severity">- Anaphylaxis</span>
-                    </div>
-                    <?php endforeach; else: ?>
-                    <div class="sidebar-item text-muted">NKA</div>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <!-- Diagnoses -->
-            <div class="sidebar-section">
-                <div class="sidebar-header" onclick="toggleSidebarSection(this)">
-                    <span><i class="fas fa-stethoscope"></i> Active Diagnoses</span>
-                    <i class="fas fa-chevron-down toggle-icon"></i>
-                </div>
-                <div class="sidebar-content">
-                    <div class="sidebar-item">
-                        <span class="diagnosis-item">Type 2 Diabetes Mellitus</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <span class="diagnosis-item">Essential Hypertension</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <span class="diagnosis-item">Chronic Kidney Disease, Stage 3</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <span class="diagnosis-item">Atrial Fibrillation</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <span class="diagnosis-item">CAD s/p CABG (2019)</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Care Team -->
-            <div class="sidebar-section">
-                <div class="sidebar-header" onclick="toggleSidebarSection(this)">
-                    <span><i class="fas fa-user-md"></i> Care Team</span>
-                    <i class="fas fa-chevron-down toggle-icon"></i>
-                </div>
-                <div class="sidebar-content">
-                    <div class="sidebar-item">
-                        <label>Attending:</label>
-                        <a href="#" class="sidebar-link"><?php echo htmlspecialchars($patient['attending_physician'] ?? 'N/A'); ?></a>
-                    </div>
-                    <div class="sidebar-item">
-                        <label>PCP:</label>
-                        <a href="#" class="sidebar-link">Dr. James Miller</a>
-                    </div>
-                    <div class="sidebar-item">
-                        <label>Nurse:</label>
-                        <span>Sarah Jones, RN</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <label>Care Mgr:</label>
-                        <span>Lisa Chen, MSW</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <label>Pharmacist:</label>
-                        <span>Mark Thompson, PharmD</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Insurance -->
-            <div class="sidebar-section">
-                <div class="sidebar-header collapsed" onclick="toggleSidebarSection(this)">
-                    <span><i class="fas fa-id-card"></i> Insurance</span>
-                    <i class="fas fa-chevron-right toggle-icon"></i>
-                </div>
-                <div class="sidebar-content" style="display: none;">
-                    <div class="sidebar-item">
-                        <label>Primary:</label>
-                        <span>Medicare</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <label>Secondary:</label>
-                        <span>BCBS Supplement</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <label>Policy #:</label>
-                        <span>MBI-123456789</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Contact Info -->
-            <div class="sidebar-section">
-                <div class="sidebar-header collapsed" onclick="toggleSidebarSection(this)">
-                    <span><i class="fas fa-phone"></i> Contact Info</span>
-                    <i class="fas fa-chevron-right toggle-icon"></i>
-                </div>
-                <div class="sidebar-content" style="display: none;">
-                    <div class="sidebar-item">
-                        <label>Phone:</label>
-                        <span>(555) 123-4567</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <label>Emergency:</label>
-                        <span>Mary Smith (Wife)</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <span>(555) 987-6543</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Advance Directives -->
-            <div class="sidebar-section">
-                <div class="sidebar-header collapsed" onclick="toggleSidebarSection(this)">
-                    <span><i class="fas fa-file-contract"></i> Advance Directives</span>
-                    <i class="fas fa-chevron-right toggle-icon"></i>
-                </div>
-                <div class="sidebar-content" style="display: none;">
-                    <div class="sidebar-item">
-                        <label>Code Status:</label>
-                        <span class="code-status-text">Full Code</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <label>Living Will:</label>
-                        <span class="text-success">On file</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <label>Healthcare Proxy:</label>
-                        <span class="text-success">Mary Smith</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Precautions -->
-            <div class="sidebar-section">
-                <div class="sidebar-header" onclick="toggleSidebarSection(this)">
-                    <span><i class="fas fa-shield-alt"></i> Precautions</span>
-                    <i class="fas fa-chevron-down toggle-icon"></i>
-                </div>
-                <div class="sidebar-content">
-                    <div class="sidebar-item">
-                        <span class="alert-badge fall-risk" style="font-size: 10px;">Fall Risk</span>
-                    </div>
-                    <div class="sidebar-item">
-                        <span class="alert-badge" style="font-size: 10px; background: #fff3cd; color: #856404;">Aspiration Risk</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="sidebar-section">
-                <div class="sidebar-header">
-                    <span><i class="fas fa-bolt"></i> Quick Actions</span>
-                </div>
-                <div class="sidebar-content">
-                    <div class="quick-action-btns">
-                        <button class="quick-btn" onclick="window.location.href='patient-chart.php?id=<?php echo $patient_id; ?>&tab=notes&action=new'">
-                            <i class="fas fa-plus"></i> Note
-                        </button>
-                        <button class="quick-btn" onclick="window.location.href='patient-chart.php?id=<?php echo $patient_id; ?>&tab=orders'">
-                            <i class="fas fa-prescription"></i> Order
-                        </button>
-                        <button class="quick-btn" onclick="window.print()">
-                            <i class="fas fa-print"></i> Print
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </aside>
         <!-- Main Content -->
         <main class="chart-main">
             <?php
@@ -404,97 +210,5 @@ include 'includes/header.php';
             ?>
         </main>
     </div>
-
-<style>
-/* Expanded Sidebar Styles */
-.sidebar-header {
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    user-select: none;
-}
-
-.sidebar-header:hover {
-    background: #e0e8f0;
-}
-
-.sidebar-header span {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.sidebar-header .toggle-icon {
-    font-size: 10px;
-    color: #888;
-    transition: transform 0.2s;
-}
-
-.sidebar-header.collapsed .toggle-icon {
-    transform: rotate(-90deg);
-}
-
-.diagnosis-item {
-    color: #1a4a5e;
-    font-size: 12px;
-}
-
-.severity {
-    font-size: 10px;
-    color: #dc3545;
-}
-
-.code-status-text {
-    font-weight: bold;
-    color: #28a745;
-}
-
-.quick-action-btns {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.quick-btn {
-    padding: 6px 10px;
-    background: #1a4a5e;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 11px;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.quick-btn:hover {
-    background: #0d3545;
-}
-</style>
-
-<script>
-function toggleSidebarSection(header) {
-    const content = header.nextElementSibling;
-    const icon = header.querySelector('.toggle-icon');
-    
-    if (content.style.display === 'none') {
-        content.style.display = 'block';
-        header.classList.remove('collapsed');
-        if (icon) {
-            icon.classList.remove('fa-chevron-right');
-            icon.classList.add('fa-chevron-down');
-        }
-    } else {
-        content.style.display = 'none';
-        header.classList.add('collapsed');
-        if (icon) {
-            icon.classList.remove('fa-chevron-down');
-            icon.classList.add('fa-chevron-right');
-        }
-    }
-}
-</script>
 
 <?php include 'includes/footer.php'; ?>

@@ -2,9 +2,7 @@
 /**
  * Openspace EHR - Admin Header Include
  * Shared header styling and layout for admin pages
- * 
- * Usage: Include this file at the top of admin pages after authentication check
- * This provides consistent styling matching the main Openspace theme
+ * Matches employee-facing layout with left sidebar navigation
  */
 
 // Ensure this is only included from admin pages
@@ -14,6 +12,15 @@ if (!defined('ADMIN_PAGE')) {
 
 // Get current admin page for nav highlighting
 $admin_current_page = basename($_SERVER['PHP_SELF'], '.php');
+
+// Admin sidebar navigation items
+$admin_sidebar_items = [
+    'index' => ['icon' => 'fa-tachometer-alt', 'label' => 'Dashboard'],
+    'users' => ['icon' => 'fa-users', 'label' => 'Users'],
+    'roles' => ['icon' => 'fa-user-shield', 'label' => 'Roles'],
+    'audit' => ['icon' => 'fa-clipboard-list', 'label' => 'Audit Log'],
+    'db-updater' => ['icon' => 'fa-database', 'label' => 'Database'],
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -24,7 +31,7 @@ $admin_current_page = basename($_SERVER['PHP_SELF'], '.php');
     <link rel="stylesheet" href="../assets/css/openspace.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Openspace Admin Theme - Matching Main Site */
+        /* Admin Theme - Matching Employee-Facing Layout */
         :root {
             --admin-primary: #1a4a5e;
             --admin-primary-dark: #0d3545;
@@ -45,183 +52,437 @@ $admin_current_page = basename($_SERVER['PHP_SELF'], '.php');
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--admin-bg);
-            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100vh;
         }
         
-        /* Admin Header - Matching Openspace Header */
-        .admin-header {
-            background: linear-gradient(to right, var(--admin-primary), var(--admin-primary-dark));
+        .app-layout {
+            display: flex;
+            height: 100vh;
+            flex-direction: column;
+        }
+        
+        .app-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            margin-top: 28px;
+            height: calc(100vh - 28px);
+        }
+        
+        /* Main Header Bar - Matching Employee Header */
+        .openspace-header {
+            background: linear-gradient(to bottom, #1a4a5e, #0d3545);
+            height: 28px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        
+        .openspace-logo-wrapper {
+            position: relative;
+        }
+        
+        .openspace-logo {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 2px 8px;
+            border-radius: 3px;
             color: white;
-            padding: 0 20px;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .admin-header-left {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-        
-        .admin-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 16px;
+            font-size: 12px;
             font-weight: 600;
-            text-decoration: none;
-            color: white;
         }
         
-        .admin-logo i {
-            font-size: 20px;
+        .openspace-logo:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .openspace-logo .logo-icon {
             color: var(--admin-accent);
         }
         
-        .admin-logo:hover {
-            opacity: 0.9;
-        }
-        
-        .admin-badge {
+        .openspace-logo .admin-badge {
             background: var(--admin-accent);
             color: white;
-            padding: 2px 8px;
-            border-radius: 3px;
-            font-size: 10px;
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 9px;
             font-weight: 600;
             text-transform: uppercase;
+            margin-left: 4px;
         }
         
-        .admin-nav {
-            display: flex;
-            gap: 2px;
-            margin-left: 30px;
+        .openspace-logo .dropdown-arrow {
+            font-size: 10px;
+            margin-left: 4px;
+            opacity: 0.7;
         }
         
-        .admin-nav a {
-            color: rgba(255,255,255,0.85);
-            text-decoration: none;
-            padding: 8px 14px;
+        /* Openspace Dropdown Menu */
+        .openspace-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border: 1px solid #ccc;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             border-radius: 4px;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.15s;
+            min-width: 220px;
+            display: none;
+            z-index: 1001;
         }
         
-        .admin-nav a:hover {
-            background: rgba(255,255,255,0.1);
+        .openspace-menu.show {
+            display: block;
+        }
+        
+        .openspace-menu-header {
+            padding: 12px 15px;
+            background: linear-gradient(to bottom, #1a4a5e, #0d3545);
             color: white;
-        }
-        
-        .admin-nav a.active {
-            background: rgba(255,255,255,0.2);
-            color: white;
-        }
-        
-        .admin-header-right {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .admin-user {
-            display: flex;
-            align-items: center;
-            gap: 8px;
             font-size: 12px;
-            color: rgba(255,255,255,0.9);
         }
         
-        .admin-user i {
+        .openspace-menu-header strong {
+            display: block;
             font-size: 14px;
+            margin-bottom: 4px;
         }
         
-        .back-to-app {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            color: white;
-            text-decoration: none;
-            font-size: 12px;
-            padding: 6px 12px;
-            border-radius: 4px;
-            background: rgba(255,255,255,0.1);
-        }
-        
-        .back-to-app:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        
-        /* Admin Layout */
-        .admin-layout {
-            display: flex;
-            min-height: calc(100vh - 48px);
-        }
-        
-        /* Admin Sidebar */
-        .admin-sidebar {
-            width: 220px;
-            background: var(--admin-card-bg);
-            border-right: 1px solid var(--admin-border);
-            padding: 15px 0;
-            flex-shrink: 0;
-        }
-        
-        .sidebar-section {
-            margin-bottom: 15px;
-        }
-        
-        .sidebar-title {
-            padding: 8px 20px;
-            font-size: 10px;
-            text-transform: uppercase;
-            color: #888;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-        
-        .sidebar-menu a {
+        .openspace-menu a {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 10px 20px;
-            color: var(--admin-text-muted);
-            text-decoration: none;
+            padding: 10px 15px;
+            color: #333;
             font-size: 13px;
-            border-left: 3px solid transparent;
-            transition: all 0.15s;
+            text-decoration: none;
         }
         
-        .sidebar-menu a:hover {
+        .openspace-menu a:hover {
             background: #f0f4f8;
-            color: var(--admin-text);
         }
         
-        .sidebar-menu a.active {
-            background: #e8f4f8;
-            border-left-color: var(--admin-primary);
-            color: var(--admin-primary);
-            font-weight: 500;
-        }
-        
-        .sidebar-menu a i {
+        .openspace-menu a i {
             width: 18px;
             text-align: center;
-            font-size: 14px;
+            color: #1a4a5e;
         }
         
-        /* Admin Content */
-        .admin-content {
+        .openspace-menu .menu-divider {
+            border-top: 1px solid #e0e0e0;
+            margin: 5px 0;
+        }
+        
+        /* Header Search */
+        .header-search {
+            margin-left: 20px;
+            position: relative;
+        }
+        
+        .header-search input {
+            width: 200px;
+            padding: 3px 10px 3px 28px;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 3px;
+            font-size: 11px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        
+        .header-search input::placeholder {
+            color: rgba(255,255,255,0.6);
+        }
+        
+        .header-search input:focus {
+            outline: none;
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.5);
+        }
+        
+        .header-search .search-icon {
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255,255,255,0.6);
+            font-size: 11px;
+        }
+        
+        /* Header Toolbar */
+        .header-toolbar {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+            gap: 2px;
+        }
+        
+        .toolbar-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: transparent;
+            border: none;
+            color: rgba(255,255,255,0.85);
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 3px;
+            text-decoration: none;
+        }
+        
+        .toolbar-btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        
+        .toolbar-btn i {
+            font-size: 12px;
+        }
+        
+        /* Header User */
+        .header-user {
+            display: flex;
+            align-items: center;
+            margin-left: 15px;
+            padding-left: 15px;
+            border-left: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .user-name {
+            color: rgba(255,255,255,0.9);
+            font-size: 11px;
+            margin-right: 5px;
+        }
+        
+        .header-dropdown {
+            position: relative;
+        }
+        
+        .header-dropdown-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255,255,255,0.7);
+            cursor: pointer;
+            padding: 4px;
+        }
+        
+        .header-dropdown-btn:hover {
+            color: white;
+        }
+        
+        .header-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-width: 180px;
+            display: none;
+            z-index: 1001;
+        }
+        
+        .header-dropdown-menu.show {
+            display: block;
+        }
+        
+        .header-dropdown-menu a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            color: #333;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        
+        .header-dropdown-menu a:hover {
+            background: #f0f4f8;
+        }
+        
+        .header-dropdown-menu a i {
+            width: 16px;
+            text-align: center;
+            color: #1a4a5e;
+        }
+        
+        .header-dropdown-menu .divider {
+            border-top: 1px solid #e0e0e0;
+            margin: 5px 0;
+        }
+        
+        /* Left Sidebar Navigation - Matching Employee Layout */
+        .left-sidebar {
+            width: 52px;
+            min-width: 52px;
+            height: 100%;
+            background: linear-gradient(to bottom, #1a4a5e, #0d3545);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            border-right: 1px solid #0a2a35;
+            z-index: 100;
+            transition: width 0.2s ease, min-width 0.2s ease;
+            overflow: visible;
+        }
+        
+        .left-sidebar.collapsed {
+            width: 0;
+            min-width: 0;
+            overflow: hidden;
+            border-right: none;
+        }
+        
+        /* Sidebar Toggle Button */
+        .sidebar-toggle {
+            position: fixed;
+            left: 52px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 48px;
+            background: #1a4a5e;
+            border: 1px solid #0a2a35;
+            border-left: none;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.7);
+            font-size: 8px;
+            z-index: 101;
+            transition: left 0.2s ease, background 0.15s;
+        }
+        
+        .sidebar-toggle:hover {
+            background: #0d3545;
+            color: white;
+        }
+        
+        .sidebar-toggle.collapsed {
+            left: 0;
+        }
+        
+        .sidebar-toggle i {
+            transition: transform 0.2s;
+        }
+        
+        .sidebar-toggle.collapsed i {
+            transform: rotate(180deg);
+        }
+        
+        .sidebar-nav {
             flex: 1;
-            padding: 20px;
             overflow-y: auto;
+            overflow-x: hidden;
+            padding: 4px 0;
         }
         
+        .sidebar-nav::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .sidebar-nav::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .sidebar-nav::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+        }
+        
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 4px;
+            color: rgba(255,255,255,0.85);
+            cursor: pointer;
+            transition: background 0.15s ease;
+            text-decoration: none;
+            font-size: 9px;
+            text-align: center;
+            border-left: 3px solid transparent;
+        }
+        
+        .nav-item:hover {
+            background: rgba(255,255,255,0.1);
+            text-decoration: none;
+            color: white;
+        }
+        
+        .nav-item.active {
+            background: rgba(255,255,255,0.15);
+            border-left-color: var(--admin-accent);
+            color: white;
+        }
+        
+        .nav-item .nav-icon {
+            font-size: 18px;
+            margin-bottom: 2px;
+        }
+        
+        .nav-item .nav-label {
+            font-size: 8px;
+            line-height: 1.1;
+            max-width: 46px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .nav-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.2);
+            margin: 4px 8px;
+        }
+        
+        /* Back to App button at bottom */
+        .nav-bottom {
+            margin-top: auto;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            padding: 4px 0;
+        }
+        
+        .nav-bottom .nav-item {
+            border-left: none;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .nav-bottom .nav-item:hover {
+            color: white;
+        }
+        
+        /* Main Content Wrapper */
+        .main-content-wrapper {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background: var(--admin-bg);
+            min-width: 0;
+        }
+        
+        .main-content {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+        }
+        
+        /* Admin Page Header */
         .admin-page-header {
             margin-bottom: 20px;
         }
@@ -488,124 +749,147 @@ $admin_current_page = basename($_SERVER['PHP_SELF'], '.php');
         .admin-switch input:checked + .slider:before {
             transform: translateX(22px);
         }
-        
-        /* Responsive */
-        @media (max-width: 992px) {
-            .admin-layout {
-                flex-direction: column;
-            }
-            
-            .admin-sidebar {
-                width: 100%;
-                border-right: none;
-                border-bottom: 1px solid var(--admin-border);
-            }
-            
-            .sidebar-menu {
-                display: flex;
-                flex-wrap: wrap;
-                padding: 10px;
-            }
-            
-            .sidebar-menu a {
-                flex: 1 1 auto;
-                justify-content: center;
-                border-left: none;
-                border-bottom: 3px solid transparent;
-            }
-            
-            .sidebar-menu a.active {
-                border-left: none;
-                border-bottom-color: var(--admin-primary);
-            }
-            
-            .sidebar-title {
-                display: none;
-            }
-        }
     </style>
     <?php if (isset($extra_admin_css)): ?>
     <style><?php echo $extra_admin_css; ?></style>
     <?php endif; ?>
 </head>
 <body>
-    <header class="admin-header">
-        <div class="admin-header-left">
-            <a href="index.php" class="admin-logo">
-                <i class="fas fa-hospital"></i>
-                <span>Openspace</span>
-                <span class="admin-badge">Admin</span>
-            </a>
-            <nav class="admin-nav">
-                <a href="index.php" class="<?php echo $admin_current_page === 'index' ? 'active' : ''; ?>">
-                    <i class="fas fa-tachometer-alt"></i> Dashboard
-                </a>
-                <a href="users.php" class="<?php echo $admin_current_page === 'users' ? 'active' : ''; ?>">
-                    <i class="fas fa-users"></i> Users
-                </a>
-                <a href="roles.php" class="<?php echo $admin_current_page === 'roles' ? 'active' : ''; ?>">
-                    <i class="fas fa-user-shield"></i> Roles
-                </a>
-                <a href="audit-log.php" class="<?php echo $admin_current_page === 'audit-log' ? 'active' : ''; ?>">
-                    <i class="fas fa-clipboard-list"></i> Audit Log
-                </a>
-                <a href="db-updater.php" class="<?php echo $admin_current_page === 'db-updater' ? 'active' : ''; ?>">
-                    <i class="fas fa-database"></i> Database
-                </a>
-            </nav>
-        </div>
-        <div class="admin-header-right">
-            <div class="admin-user">
-                <i class="fas fa-user-circle"></i>
-                <span><?php echo htmlspecialchars($user['name'] ?? $user['username'] ?? 'Admin'); ?></span>
-            </div>
-            <a href="../home.php" class="back-to-app">
-                <i class="fas fa-arrow-left"></i> Back to App
-            </a>
-        </div>
-    </header>
-    
-    <div class="admin-layout">
-        <aside class="admin-sidebar">
-            <div class="sidebar-section">
-                <div class="sidebar-title">General</div>
-                <div class="sidebar-menu">
-                    <a href="index.php" class="<?php echo $admin_current_page === 'index' ? 'active' : ''; ?>">
-                        <i class="fas fa-tachometer-alt"></i> Dashboard
-                    </a>
-                    <a href="index.php#appearance" class="<?php echo $admin_current_page === 'index' && isset($_GET['section']) && $_GET['section'] === 'appearance' ? 'active' : ''; ?>">
-                        <i class="fas fa-palette"></i> Appearance
-                    </a>
-                    <a href="index.php#features" class="<?php echo $admin_current_page === 'index' && isset($_GET['section']) && $_GET['section'] === 'features' ? 'active' : ''; ?>">
-                        <i class="fas fa-toggle-on"></i> Features
-                    </a>
+    <div class="app-layout">
+        <!-- Main Header Bar - Matching Employee Header -->
+        <header class="openspace-header">
+            <div class="openspace-logo-wrapper">
+                <div class="openspace-logo" onclick="toggleOpenspaceMenu()">
+                    <span class="logo-icon"><i class="fas fa-hospital"></i></span>
+                    <span>Openspace</span>
+                    <span class="admin-badge">Admin</span>
+                    <i class="fas fa-caret-down dropdown-arrow"></i>
+                </div>
+                <div class="openspace-menu" id="openspaceMenu">
+                    <div class="openspace-menu-header">
+                        <strong>Openspace EHR</strong>
+                        Administration Panel
+                    </div>
+                    <a href="index.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                    <a href="users.php"><i class="fas fa-users"></i> Users</a>
+                    <a href="roles.php"><i class="fas fa-user-shield"></i> Roles</a>
+                    <div class="menu-divider"></div>
+                    <a href="../home.php"><i class="fas fa-arrow-left"></i> Back to App</a>
                 </div>
             </div>
-            <div class="sidebar-section">
-                <div class="sidebar-title">User Management</div>
-                <div class="sidebar-menu">
-                    <a href="users.php" class="<?php echo $admin_current_page === 'users' ? 'active' : ''; ?>">
-                        <i class="fas fa-users"></i> All Users
-                    </a>
-                    <a href="roles.php" class="<?php echo $admin_current_page === 'roles' ? 'active' : ''; ?>">
-                        <i class="fas fa-user-shield"></i> Roles & Permissions
-                    </a>
+            
+            <div class="header-search">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" placeholder="Search admin..." id="adminSearch">
+            </div>
+            
+            <div class="header-toolbar">
+                <a href="users.php" class="toolbar-btn" title="Users">
+                    <i class="fas fa-users"></i>
+                    <span>Users</span>
+                </a>
+                <a href="audit.php" class="toolbar-btn" title="Audit Log">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Audit</span>
+                </a>
+                <a href="db-updater.php" class="toolbar-btn" title="Database">
+                    <i class="fas fa-database"></i>
+                    <span>Database</span>
+                </a>
+            </div>
+            
+            <div class="header-user">
+                <span class="user-name"><?php echo htmlspecialchars($user['name'] ?? $user['username'] ?? 'Admin'); ?></span>
+                <div class="header-dropdown">
+                    <button class="header-dropdown-btn" onclick="toggleUserMenu()">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="header-dropdown-menu" id="userDropdown">
+                        <a href="../profile.php"><i class="fas fa-user"></i> My Profile</a>
+                        <a href="../settings.php"><i class="fas fa-cog"></i> Settings</a>
+                        <div class="divider"></div>
+                        <a href="../home.php"><i class="fas fa-arrow-left"></i> Back to App</a>
+                        <div class="divider"></div>
+                        <a href="../logout.php"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+                    </div>
                 </div>
             </div>
-            <div class="sidebar-section">
-                <div class="sidebar-title">System</div>
-                <div class="sidebar-menu">
-                    <a href="audit-log.php" class="<?php echo $admin_current_page === 'audit-log' ? 'active' : ''; ?>">
-                        <i class="fas fa-clipboard-list"></i> Audit Log
-                    </a>
-                    <a href="db-updater.php" class="<?php echo $admin_current_page === 'db-updater' ? 'active' : ''; ?>">
-                        <i class="fas fa-database"></i> Database Updates
-                    </a>
-                    <a href="index.php#security">
-                        <i class="fas fa-shield-alt"></i> Security
-                    </a>
-                </div>
-            </div>
-        </aside>
+        </header>
         
-        <main class="admin-content">
+        <div class="app-body">
+            <!-- Sidebar Toggle Button -->
+            <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            
+            <!-- Left Sidebar Navigation -->
+            <nav class="left-sidebar" id="leftSidebar">
+                <div class="sidebar-nav">
+                    <?php foreach ($admin_sidebar_items as $key => $item): 
+                        $is_active = ($admin_current_page === $key);
+                    ?>
+                    <a href="<?php echo $key; ?>.php" 
+                       class="nav-item <?php echo $is_active ? 'active' : ''; ?>" 
+                       title="<?php echo $item['label']; ?>">
+                        <i class="fas <?php echo $item['icon']; ?> nav-icon"></i>
+                        <span class="nav-label"><?php echo $item['label']; ?></span>
+                    </a>
+                    <?php endforeach; ?>
+                </div>
+                
+                <div class="nav-bottom">
+                    <a href="../home.php" class="nav-item" title="Back to App">
+                        <i class="fas fa-arrow-left nav-icon"></i>
+                        <span class="nav-label">Back</span>
+                    </a>
+                </div>
+            </nav>
+            
+            <!-- Main Content Wrapper -->
+            <div class="main-content-wrapper">
+                <div class="main-content">
+
+<script>
+// Openspace menu toggle
+function toggleOpenspaceMenu() {
+    const menu = document.getElementById('openspaceMenu');
+    menu.classList.toggle('show');
+}
+
+// User menu toggle
+function toggleUserMenu() {
+    const menu = document.getElementById('userDropdown');
+    menu.classList.toggle('show');
+}
+
+// Sidebar toggle
+function toggleSidebar() {
+    const sidebar = document.getElementById('leftSidebar');
+    const toggle = document.getElementById('sidebarToggle');
+    const isCollapsed = sidebar.classList.toggle('collapsed');
+    toggle.classList.toggle('collapsed', isCollapsed);
+    localStorage.setItem('adminSidebarCollapsed', isCollapsed);
+}
+
+// Restore sidebar state on load
+document.addEventListener('DOMContentLoaded', function() {
+    const isCollapsed = localStorage.getItem('adminSidebarCollapsed') === 'true';
+    if (isCollapsed) {
+        document.getElementById('leftSidebar')?.classList.add('collapsed');
+        document.getElementById('sidebarToggle')?.classList.add('collapsed');
+    }
+});
+
+// Close menus when clicking outside
+document.addEventListener('click', function(event) {
+    const openspaceWrapper = document.querySelector('.openspace-logo-wrapper');
+    if (openspaceWrapper && !openspaceWrapper.contains(event.target)) {
+        document.getElementById('openspaceMenu')?.classList.remove('show');
+    }
+    
+    const userDropdown = document.querySelector('.header-dropdown');
+    if (userDropdown && !userDropdown.contains(event.target)) {
+        document.getElementById('userDropdown')?.classList.remove('show');
+    }
+});
+</script>

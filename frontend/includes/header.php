@@ -114,8 +114,6 @@ $more_menu_items = [
     ['label' => 'Orders', 'tab' => 'orders', 'icon' => 'fa-prescription'],
     ['label' => 'Demographics', 'tab' => 'demographics', 'icon' => 'fa-id-card'],
     ['label' => 'History', 'tab' => 'history', 'icon' => 'fa-history'],
-    ['divider' => true],
-    ['label' => 'Customize...', 'action' => 'customize', 'icon' => 'fa-cog'],
 ];
 
 // Get current patient ID and tab for sidebar
@@ -158,26 +156,65 @@ function hasNavPermission($permission) {
             flex-direction: column;
         }
         
-        .app-body {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-            margin-top: 28px;
-        }
-        
-        .has-patient-tabs .app-body {
-            margin-top: 54px;
-        }
-        
         /* Left Sidebar Navigation */
         .left-sidebar {
             width: 52px;
+            min-width: 52px;
+            height: 100%;
             background: linear-gradient(to bottom, #1a4a5e, #0d3545);
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
             border-right: 1px solid #0a2a35;
             z-index: 100;
+            transition: width 0.2s ease, min-width 0.2s ease;
+            overflow: visible;
+        }
+        
+        .left-sidebar.collapsed {
+            width: 0;
+            min-width: 0;
+            overflow: hidden;
+            border-right: none;
+        }
+        
+        /* Sidebar Toggle Button */
+        .sidebar-toggle {
+            position: fixed;
+            left: 52px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px;
+            height: 48px;
+            background: #1a4a5e;
+            border: 1px solid #0a2a35;
+            border-left: none;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.7);
+            font-size: 8px;
+            z-index: 101;
+            transition: left 0.2s ease, background 0.15s;
+        }
+        
+        .sidebar-toggle:hover {
+            background: #0d3545;
+            color: white;
+        }
+        
+        .sidebar-toggle.collapsed {
+            left: 0;
+        }
+        
+        .sidebar-toggle i {
+            transition: transform 0.2s;
+        }
+        
+        .sidebar-toggle.collapsed i {
+            transform: rotate(180deg);
         }
         
         .sidebar-nav {
@@ -247,9 +284,22 @@ function hasNavPermission($permission) {
         }
         
         /* More Button */
-        .nav-more {
+        .nav-bottom {
+            margin-top: auto;
             border-top: 1px solid rgba(255,255,255,0.2);
-            padding: 8px 4px;
+        }
+        
+        .nav-customize {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .nav-customize .nav-item {
+            border-left: none;
+        }
+        
+        .nav-more {
+            padding: 4px 0;
         }
         
         .nav-more .nav-item {
@@ -342,12 +392,27 @@ function hasNavPermission($permission) {
             display: flex;
             flex-direction: column;
             background: #d8e0e8;
+            min-width: 0;
         }
         
         .main-content {
             flex: 1;
             overflow: auto;
             padding: 10px;
+        }
+        
+        /* Ensure app-body takes full height */
+        .app-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            margin-top: 28px;
+            height: calc(100vh - 28px);
+        }
+        
+        .has-patient-tabs .app-body {
+            margin-top: 54px;
+            height: calc(100vh - 54px);
         }
         
         /* Patient Tab Bar - Now beside sidebar */
@@ -836,6 +901,10 @@ function hasNavPermission($permission) {
             </div>
             
             <div class="header-toolbar">
+                <a href="home.php" class="toolbar-btn" title="Home">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
                 <a href="patients.php" class="toolbar-btn" title="Patient Lists">
                     <i class="fas fa-users"></i>
                     <span>Patient Lists</span>
@@ -898,8 +967,13 @@ function hasNavPermission($permission) {
         
         <div class="app-body">
             <?php if ($show_sidebar && $sidebar_patient_id): ?>
+            <!-- Sidebar Toggle Button -->
+            <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            
             <!-- Left Sidebar Navigation (Patient Chart Only) -->
-            <nav class="left-sidebar">
+            <nav class="left-sidebar" id="leftSidebar">
                 <div class="sidebar-nav">
                     <?php 
                     foreach ($sidebar_favorites as $key):
@@ -909,7 +983,8 @@ function hasNavPermission($permission) {
                     ?>
                     <a href="patient-chart.php?id=<?php echo $sidebar_patient_id; ?>&tab=<?php echo $key; ?>" 
                        class="nav-item <?php echo $is_active ? 'active' : ''; ?>" 
-                       title="<?php echo $item['label']; ?>">
+                       title="<?php echo $item['label']; ?> (Ctrl+Click to open in new window)"
+                       onclick="return handleNavClick(event, this)">
                         <i class="fas <?php echo $item['icon']; ?> nav-icon"></i>
                         <span class="nav-label"><?php echo $item['label']; ?></span>
                     </a>
@@ -919,10 +994,18 @@ function hasNavPermission($permission) {
                     ?>
                 </div>
                 
-                <div class="nav-more">
-                    <div class="nav-item" onclick="toggleMoreMenu(event)" title="More">
-                        <i class="fas fa-chevron-right nav-icon"></i>
-                        <span class="nav-label">More</span>
+                <div class="nav-bottom">
+                    <div class="nav-customize">
+                        <div class="nav-item" onclick="openCustomizeSidebarModal()" title="Customize">
+                            <i class="fas fa-cog nav-icon"></i>
+                            <span class="nav-label">Customize</span>
+                        </div>
+                    </div>
+                    <div class="nav-more">
+                        <div class="nav-item" onclick="toggleMoreMenu(event)" title="More">
+                            <i class="fas fa-chevron-right nav-icon"></i>
+                            <span class="nav-label">More</span>
+                        </div>
                     </div>
                 </div>
             </nav>
@@ -938,14 +1021,14 @@ function hasNavPermission($permission) {
                             <span><?php echo $item['label']; ?></span>
                         </div>
                     <?php else: ?>
-                        <div class="more-menu-item" onclick="navigateToTab('<?php echo $item['tab']; ?>')">
+                        <div class="more-menu-item" onclick="navigateToTab('<?php echo $item['tab']; ?>', event)">
                             <i class="fas <?php echo $item['icon']; ?>"></i>
                             <span><?php echo $item['label']; ?></span>
                             <?php if (isset($item['submenu'])): ?>
                             <span class="submenu-arrow"><i class="fas fa-chevron-right"></i></span>
                             <div class="submenu">
                                 <?php foreach ($item['submenu'] as $sub): ?>
-                                <div class="more-menu-item" onclick="event.stopPropagation(); navigateToTab('<?php echo $sub['tab']; ?>')">
+                                <div class="more-menu-item" onclick="event.stopPropagation(); navigateToTab('<?php echo $sub['tab']; ?>', event)">
                                     <span><?php echo $sub['label']; ?></span>
                                 </div>
                                 <?php endforeach; ?>
@@ -1012,14 +1095,52 @@ function closeMoreMenu() {
     document.getElementById('moreMenu').classList.remove('show');
 }
 
+// Sidebar toggle
+function toggleSidebar() {
+    const sidebar = document.getElementById('leftSidebar');
+    const toggle = document.getElementById('sidebarToggle');
+    const isCollapsed = sidebar.classList.toggle('collapsed');
+    toggle.classList.toggle('collapsed', isCollapsed);
+    
+    // Save preference
+    localStorage.setItem('sidebarCollapsed', isCollapsed);
+}
+
+// Restore sidebar state on load
+document.addEventListener('DOMContentLoaded', function() {
+    const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+    if (isCollapsed) {
+        document.getElementById('leftSidebar')?.classList.add('collapsed');
+        document.getElementById('sidebarToggle')?.classList.add('collapsed');
+    }
+});
+
 // Navigate to patient chart tab
-function navigateToTab(tab) {
+function navigateToTab(tab, event) {
     const urlParams = new URLSearchParams(window.location.search);
     const patientId = urlParams.get('id');
     if (patientId) {
-        window.location.href = 'patient-chart.php?id=' + patientId + '&tab=' + tab;
+        const url = 'patient-chart.php?id=' + patientId + '&tab=' + tab;
+        // If Ctrl/Cmd key is held, open in new window/tab
+        if (event && (event.ctrlKey || event.metaKey)) {
+            window.open(url, '_blank');
+        } else {
+            window.location.href = url;
+        }
     }
     closeMoreMenu();
+}
+
+// Handle navigation click - support Ctrl+Click for new window
+function handleNavClick(event, element) {
+    // If Ctrl/Cmd key is held or middle mouse button, open in new window/tab
+    if (event.ctrlKey || event.metaKey || event.button === 1) {
+        event.preventDefault();
+        window.open(element.href, '_blank');
+        return false;
+    }
+    // Normal click - let default behavior happen
+    return true;
 }
 
 // Handle menu actions (Customize, etc.)
