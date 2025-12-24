@@ -15,6 +15,7 @@ from models.flowsheet import FlowsheetTemplate, FlowsheetEntry, FlowsheetSection
 from models.lab import LabResult
 from models.note import Note, SmartPhrase
 from models.user import User
+from models.auth import UserSession
 
 def create_app(config_name='default'):
     """Application factory"""

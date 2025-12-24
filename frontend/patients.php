@@ -1,6 +1,6 @@
 <?php
 /**
- * Patient List Page
+ * Patient List Page - Openspace EHR
  * Browse and search patients
  */
 require_once __DIR__ . '/includes/config.php';
@@ -11,49 +11,19 @@ $patientsData = $patientService->getAll();
 $patients = $patientsData['success'] ? $patientsData['data'] : [];
 
 $pageTitle = 'Patient List';
+$page_title = $pageTitle . ' - ' . APP_NAME;
 
 $user = getCurrentUser();
+
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $pageTitle; ?> - <?php echo APP_NAME; ?></title>
-    <link rel="stylesheet" href="/assets/css/epic-styles.css">
-    <script src="/assets/js/epic-app.js" defer></script>
-</head>
-<body>
-    <!-- Main Application Header -->
-    <header class="app-header">
-        <div class="app-logo">Epic</div>
-        
-        <div class="app-toolbar">
-            <button class="toolbar-btn active" title="Patient Lists">
-                <span class="icon">📁</span> Patient Lists
-            </button>
-            <button class="toolbar-btn" title="Today's Pts">
-                <span class="icon">📋</span> Today's Pts
-            </button>
-            <span class="toolbar-separator"></span>
-            <button class="toolbar-btn" title="In Basket">
-                <span class="icon">📥</span> In Basket
-            </button>
-        </div>
-        
-        <div class="app-user-info">
-            <span><?php echo sanitize($user['display_name'] ?? 'Unknown User'); ?></span>
-            <span class="toolbar-separator"></span>
-            <button class="toolbar-btn" title="Log Out">🚪 Log Out</button>
-        </div>
-    </header>
 
     <!-- Content -->
-    <div style="margin-top: 40px; padding: 20px;">
-        <div style="background: white; border: 1px solid #ccc; max-width: 1200px; margin: 0 auto;">
+    <div class="dashboard-content">
+        <div style="background: white; border: 1px solid #ccc; max-width: 1200px; margin: 0 auto; border-radius: 4px;">
             <!-- Header -->
-            <div class="panel-header">
-                📋 Patient List
+            <div class="panel-header blue">
+                <span><i class="fas fa-clipboard-list"></i> Patient List</span>
             </div>
 
             <!-- Search Bar -->
@@ -85,7 +55,7 @@ $user = getCurrentUser();
                         <?php foreach ($patients as $patient): ?>
                         <tr>
                             <td class="text-center">
-                                <a href="index.php?patient_id=<?php echo $patient['id']; ?>" class="btn btn-primary" style="padding: 2px 8px; font-size: 10px;">
+                                <a href="patient-chart.php?id=<?php echo $patient['id']; ?>" class="btn btn-primary" style="padding: 2px 8px; font-size: 10px;">
                                     Open
                                 </a>
                             </td>
@@ -128,13 +98,13 @@ $user = getCurrentUser();
         <div style="max-width: 1200px; margin: 20px auto; background: white; border: 1px solid #ccc; padding: 15px;">
             <h3 style="margin-bottom: 10px;">🎯 Demo Scenarios</h3>
             <div class="d-flex gap-2 flex-wrap">
-                <a href="index.php?patient_id=1" class="btn btn-secondary">
+                <a href="patient-chart.php?id=1" class="btn btn-secondary">
                     👤 Pastoral Services Case (Melissa Testmonday)
                 </a>
-                <a href="activities/post-partum-hemorrhage.php?patient_id=2" class="btn btn-secondary" style="background: #ffcccc;">
+                <a href="patient-chart.php?id=2&tab=summary" class="btn btn-secondary" style="background: #ffcccc;">
                     🩸 Post Partum Hemorrhage (Mary Smith)
                 </a>
-                <a href="activities/flowsheets.php?patient_id=1&group=Pastoral%20Services" class="btn btn-secondary">
+                <a href="patient-chart.php?id=1&tab=flowsheets" class="btn btn-secondary">
                     📋 Flowsheets View
                 </a>
             </div>
@@ -178,7 +148,7 @@ $user = getCurrentUser();
             tbody.innerHTML = patients.map(patient => `
                 <tr>
                     <td class="text-center">
-                        <a href="index.php?patient_id=${patient.id}" class="btn btn-primary" style="padding: 2px 8px; font-size: 10px;">
+                        <a href="patient-chart.php?id=${patient.id}" class="btn btn-primary" style="padding: 2px 8px; font-size: 10px;">
                             Open
                         </a>
                     </td>
@@ -200,5 +170,5 @@ $user = getCurrentUser();
             }
         });
     </script>
-</body>
-</html>
+
+<?php include 'includes/footer.php'; ?>

@@ -1,13 +1,14 @@
 <?php
 /**
- * Login Page
+ * Login Page - Openspace EHR
  * HIPAA-compliant authentication with MFA support
  */
 
+require_once __DIR__ . '/includes/config.php';
+
 // Redirect if already logged in
-session_start();
 if (isset($_SESSION['user_id']) && isset($_SESSION['authenticated'])) {
-    header('Location: /index.php');
+    header('Location: home.php');
     exit;
 }
 
@@ -86,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['last_activity'] = time();
         
         // Redirect to intended page or home
-        $redirect = $_SESSION['intended_url'] ?? '/index.php';
+        $redirect = $_SESSION['intended_url'] ?? 'home.php';
         unset($_SESSION['intended_url']);
         header('Location: ' . $redirect);
         exit;
@@ -108,14 +109,15 @@ $show_mfa = isset($_GET['mfa']) && $_GET['mfa'] === 'required';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | EPIC EHR System</title>
+    <title>Login | <?php echo APP_NAME; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary-color: #0066cc;
-            --secondary-color: #004499;
-            --accent-color: #00aa55;
+            --primary-color: #1a4a5e;
+            --secondary-color: #0d3545;
+            --accent-color: #2a6a8e;
             --warning-color: #ff9900;
             --danger-color: #cc0000;
         }
@@ -329,9 +331,9 @@ $show_mfa = isset($_GET['mfa']) && $_GET['mfa'] === 'required';
         <div class="login-card">
             <div class="login-header">
                 <div class="logo">
-                    <i class="bi bi-heart-pulse"></i>
+                    <i class="fas fa-hospital"></i>
                 </div>
-                <h1>EPIC EHR System</h1>
+                <h1><?php echo APP_NAME; ?></h1>
                 <p>Electronic Health Records</p>
             </div>
             

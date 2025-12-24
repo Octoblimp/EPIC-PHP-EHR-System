@@ -1,6 +1,6 @@
 <?php
 /**
- * Configuration file for Epic EHR Frontend
+ * Configuration file for Openspace EHR Frontend
  */
 
 // API Configuration
@@ -12,8 +12,11 @@ define('API_TIMEOUT', 30);
 define('API_BASE_URL_JS', '/api');
 
 // Application Configuration
-define('APP_NAME', 'Epic Hyperspace');
+define('APP_NAME', 'Openspace EHR');
 define('APP_VERSION', '1.0.0');
+
+// Asset paths
+define('ASSETS_PATH', 'assets');
 
 // Session Configuration
 session_start();
