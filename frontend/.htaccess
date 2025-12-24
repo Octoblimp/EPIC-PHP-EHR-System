@@ -1,0 +1,16 @@
+# URL Rewriting for Epic EHR Frontend
+# Enables clean URLs and API proxying
+
+RewriteEngine On
+
+# Proxy API requests to Python backend
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteRule ^api/(.*)$ http://localhost:5000/api/$1 [P,L]
+
+# Don't rewrite actual files or directories
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Handle pretty URLs
+RewriteRule ^patient/([0-9]+)$ index.php?patient_id=$1 [QSA,L]
+RewriteRule ^activity/([a-z-]+)/([0-9]+)$ activities/$1.php?patient_id=$2 [QSA,L]
