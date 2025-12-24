@@ -19,17 +19,31 @@ define('APP_VERSION', '1.0.0');
 define('ASSETS_PATH', 'assets');
 
 // Session Configuration
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-// Default user (for demo purposes)
-if (!isset($_SESSION['user'])) {
+// Build user array from session if authenticated
+if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true) {
+    // User is logged in - build user array from session data
+    $_SESSION['user'] = [
+        'id' => $_SESSION['user_id'] ?? 0,
+        'username' => $_SESSION['username'] ?? 'unknown',
+        'name' => $_SESSION['full_name'] ?? 'Unknown User',
+        'display_name' => $_SESSION['full_name'] ?? 'Unknown User',
+        'role' => $_SESSION['role'] ?? 'User',
+        'department' => $_SESSION['department'] ?? 'General',
+        'permissions' => $_SESSION['permissions'] ?? []
+    ];
+} elseif (!isset($_SESSION['user'])) {
+    // Default demo user (only if not authenticated and no user set)
     $_SESSION['user'] = [
         'id' => 1,
-        'username' => 'nursejones',
-        'name' => 'Jones, Sarah RN',
-        'display_name' => 'Sarah Jones, RN',
-        'role' => 'Nurse',
-        'department' => 'Medical/Surgical'
+        'username' => 'demo',
+        'name' => 'Demo User',
+        'display_name' => 'Demo User',
+        'role' => 'Demo',
+        'department' => 'Demo Mode'
     ];
 }
 

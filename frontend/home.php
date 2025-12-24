@@ -9,11 +9,9 @@ require_once 'includes/api.php';
 
 $page_title = 'Home - ' . APP_NAME;
 
-// Fetch patients for the dashboard
-$patients = apiGet('/patients') ?? [];
-if (isset($patients['error'])) {
-    $patients = [];
-}
+// Fetch patients for the dashboard using the patientService
+$patientsData = $patientService->getAll();
+$patients = ($patientsData['success'] ?? false) ? ($patientsData['data'] ?? []) : [];
 
 // Default demo patients if API not available
 if (empty($patients)) {
