@@ -3,11 +3,9 @@ Non-Clinical Features Models
 Billing, Messaging, Documents, Reporting
 """
 from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
+from . import db
 import json
 import uuid
-
-db = SQLAlchemy()
 
 
 # ============================================================

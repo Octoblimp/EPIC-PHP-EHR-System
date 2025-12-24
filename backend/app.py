@@ -33,7 +33,9 @@ def create_app(config_name='default'):
     from routes.flowsheet_routes import flowsheet_bp
     from routes.lab_routes import lab_bp
     from routes.note_routes import note_bp
+    from routes.auth_routes import auth_bp
     
+    app.register_blueprint(auth_bp)  # Already has url_prefix='/api/auth'
     app.register_blueprint(patient_bp, url_prefix='/api/patients')
     app.register_blueprint(medication_bp, url_prefix='/api/medications')
     app.register_blueprint(order_bp, url_prefix='/api/orders')

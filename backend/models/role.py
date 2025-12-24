@@ -204,52 +204,8 @@ class PatientListEntry(db.Model):
         }
 
 
-class AuditLog(db.Model):
-    """Audit trail for all system actions"""
-    __tablename__ = 'audit_logs'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    
-    # Who
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    username = db.Column(db.String(100))
-    user_role = db.Column(db.String(100))
-    
-    # What
-    action = db.Column(db.String(50), nullable=False)  # view, create, update, delete, sign, print
-    resource_type = db.Column(db.String(50))  # patient, order, medication, note, etc.
-    resource_id = db.Column(db.Integer)
-    
-    # Details
-    description = db.Column(db.Text)
-    old_value = db.Column(db.Text)  # JSON of previous state
-    new_value = db.Column(db.Text)  # JSON of new state
-    
-    # Patient context
-    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'))
-    encounter_id = db.Column(db.Integer, db.ForeignKey('encounters.id'))
-    
-    # Technical details
-    ip_address = db.Column(db.String(50))
-    user_agent = db.Column(db.String(500))
-    session_id = db.Column(db.String(100))
-    
-    # Timestamp
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'username': self.username,
-            'action': self.action,
-            'resource_type': self.resource_type,
-            'resource_id': self.resource_id,
-            'description': self.description,
-            'patient_id': self.patient_id,
-            'ip_address': self.ip_address,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
+# Import AuditLog from audit.py to avoid duplication
+from .audit import AuditLog
 
 
 # Default roles to seed

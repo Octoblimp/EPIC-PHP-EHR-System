@@ -3,10 +3,8 @@ HIPAA Compliance - Audit Logging System
 Comprehensive PHI access logging and security audit trail
 """
 from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
+from . import db
 import json
-
-db = SQLAlchemy()
 
 
 class AuditLog(db.Model):
@@ -59,8 +57,8 @@ class AuditLog(db.Model):
     status = db.Column(db.String(20), default='SUCCESS')  # SUCCESS, FAILURE, DENIED
     error_message = db.Column(db.Text)
     
-    # Relationships
-    user = db.relationship('User', back_populates='audit_logs', foreign_keys=[user_id])
+    # Relationships - using backref instead of back_populates to avoid requiring User model to define the relationship
+    user = db.relationship('User', foreign_keys=[user_id], lazy='joined')
     
     # Action types
     ACTION_LOGIN = 'LOGIN'

@@ -4,8 +4,12 @@
  */
 
 // API Configuration
-define('API_BASE_URL', 'http://localhost:5000/api');
+// Use localhost to bypass Cloudflare when PHP makes internal API calls
+define('API_BASE_URL', 'http://127.0.0.1:5000/api');
 define('API_TIMEOUT', 30);
+
+// For JavaScript/browser calls, use relative URL (goes through nginx proxy)
+define('API_BASE_URL_JS', '/api');
 
 // Application Configuration
 define('APP_NAME', 'Epic Hyperspace');

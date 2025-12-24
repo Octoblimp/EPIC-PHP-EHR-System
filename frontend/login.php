@@ -22,9 +22,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     $mfa_code = $_POST['mfa_code'] ?? '';
     
+    // Call Python backend DIRECTLY on localhost (bypasses Cloudflare)
+    $api_url = 'http://127.0.0.1:5000/api/auth/login';
+    
+    // Debug info array
+    $debug_info = [];
+    $debug_info['api_url'] = $api_url;
+    $debug_info['request_time'] = date('Y-m-d H:i:s');
+    
     // Call backend authentication API
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, 'http://localhost:5000/api/auth/login');
+    
+    $debug_info['full_url'] = $api_url;
+    
+    curl_setopt($ch, CURLOPT_URL, $api_url);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
         'username' => $username,
@@ -33,12 +44,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ]));
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     
     $response = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
+    $curl_errno = curl_errno($ch);
+    $effective_url = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
     curl_close($ch);
     
+    // Collect debug info
+    $debug_info['http_code'] = $http_code;
+    $debug_info['effective_url'] = $effective_url;
+    $debug_info['curl_error'] = $curl_error;
+    $debug_info['curl_errno'] = $curl_errno;
+    $debug_info['response_length'] = strlen($response);
+    $debug_info['response_preview'] = substr($response, 0, 500);
+    
     $result = json_decode($response, true);
+    $debug_info['json_decode_error'] = json_last_error_msg();
     
     if ($http_code === 200 && isset($result['success']) && $result['success']) {
         // Check if MFA is required
@@ -67,8 +92,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     } else {
         $error_message = $result['error'] ?? 'Invalid credentials. Please try again.';
+        // Store debug info for display
+        $_SESSION['login_debug'] = $debug_info;
     }
 }
+
+// Get debug info if available
+$debug_info = $_SESSION['login_debug'] ?? null;
+unset($_SESSION['login_debug']);
 
 $show_mfa = isset($_GET['mfa']) && $_GET['mfa'] === 'required';
 ?>
@@ -309,6 +340,25 @@ $show_mfa = isset($_GET['mfa']) && $_GET['mfa'] === 'required';
                 <div class="alert alert-danger">
                     <i class="bi bi-exclamation-circle me-2"></i>
                     <?= htmlspecialchars($error_message) ?>
+                </div>
+                <?php endif; ?>
+                
+                <?php if ($debug_info): ?>
+                <div class="alert alert-secondary" style="font-size: 12px; text-align: left;">
+                    <strong><i class="bi bi-bug me-2"></i>Debug Info:</strong>
+                    <hr style="margin: 8px 0;">
+                    <div><strong>API URL:</strong> <?= htmlspecialchars($debug_info['api_url'] ?? 'N/A') ?></div>
+                    <div><strong>Full URL:</strong> <?= htmlspecialchars($debug_info['full_url'] ?? 'N/A') ?></div>
+                    <div><strong>Effective URL:</strong> <?= htmlspecialchars($debug_info['effective_url'] ?? 'N/A') ?></div>
+                    <div><strong>HTTP Code:</strong> <?= htmlspecialchars($debug_info['http_code'] ?? 'N/A') ?></div>
+                    <div><strong>cURL Error:</strong> <?= htmlspecialchars($debug_info['curl_error'] ?: 'None') ?></div>
+                    <div><strong>cURL Errno:</strong> <?= htmlspecialchars($debug_info['curl_errno'] ?? 'N/A') ?></div>
+                    <div><strong>Response Length:</strong> <?= htmlspecialchars($debug_info['response_length'] ?? 'N/A') ?> bytes</div>
+                    <div><strong>JSON Decode:</strong> <?= htmlspecialchars($debug_info['json_decode_error'] ?? 'N/A') ?></div>
+                    <details style="margin-top: 8px;">
+                        <summary>Response Preview</summary>
+                        <pre style="white-space: pre-wrap; word-break: break-all; font-size: 11px; max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 8px; margin-top: 5px;"><?= htmlspecialchars($debug_info['response_preview'] ?? 'Empty') ?></pre>
+                    </details>
                 </div>
                 <?php endif; ?>
                 

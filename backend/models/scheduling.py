@@ -3,10 +3,8 @@ Scheduling Models
 Appointment scheduling, provider calendars, resource booking
 """
 from datetime import datetime, timedelta, date, time
-from flask_sqlalchemy import SQLAlchemy
+from . import db
 import json
-
-db = SQLAlchemy()
 
 
 class Appointment(db.Model):
