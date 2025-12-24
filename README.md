@@ -264,7 +264,18 @@ define('SESSION_TIMEOUT', 900);
 
 3. **Open in browser**: `http://localhost:8080`
 
-4. **Login** with demo credentials or create users via the admin interface
+4. **Login** with default credentials:
+
+### Default Credentials
+
+| Username | Password | Role | Department |
+|----------|----------|------|------------|
+| `admin` | `password123` | Administrator | IT |
+| `drsmith` | `password123` | Physician | Internal Medicine |
+| `nursejones` | `password123` | Nurse | Medical/Surgical |
+| `drsandhu` | `password123` | Physician | OB/GYN |
+
+> ⚠️ **Security Warning**: For production deployments, immediately change all default passwords or delete the seeded users and create new accounts via the admin interface.
 
 ### Key Workflows
 

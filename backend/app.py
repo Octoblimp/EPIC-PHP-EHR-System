@@ -97,6 +97,18 @@ def seed_database():
     # Create sample users
     users = [
         User(
+            username='admin',
+            first_name='System',
+            last_name='Administrator',
+            email='admin@hospital.org',
+            role='Administrator',
+            department='IT',
+            title='System Admin',
+            is_provider=False,
+            can_order=False,
+            can_prescribe=False
+        ),
+        User(
             username='drsmith',
             first_name='John',
             last_name='Smith',
