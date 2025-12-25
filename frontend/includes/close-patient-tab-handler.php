@@ -10,7 +10,7 @@ session_start();
 
 // Get patient ID from POST
 $patientId = isset($_POST['patient_id']) ? (int)$_POST['patient_id'] : null;
-$returnUrl = isset($_POST['return_url']) ? $_POST['return_url'] : 'home.php';
+$returnUrl = isset($_POST['return_url']) ? $_POST['return_url'] : '/home.php';
 
 // Validate return URL to prevent open redirect
 $allowedPrefixes = ['home.php', 'patient-chart.php', 'patients.php', 'inbox.php', 'profile.php', 'settings.php', 'admin.php', 'notes.php', 'patient-lists.php'];
