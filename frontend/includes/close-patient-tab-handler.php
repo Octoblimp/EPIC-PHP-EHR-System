@@ -23,7 +23,7 @@ foreach ($allowedPrefixes as $prefix) {
 }
 
 if (!$validReturn) {
-    $returnUrl = 'home.php';
+    $returnUrl = '/home.php';
 }
 
 if ($patientId) {
