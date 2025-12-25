@@ -5,6 +5,27 @@
  * This allows the PHP frontend to communicate with the Python API
  */
 
+// List of local PHP API files that should NOT be proxied
+$localApiFiles = [
+    'close-patient-tab.php',
+    'add-patient-tab.php',
+    'toggle-sidebar-favorite.php',
+    'update-sidebar-favorites.php'
+];
+
+// Check if request is for a local PHP file
+$requestUri = $_SERVER['REQUEST_URI'];
+$path = parse_url($requestUri, PHP_URL_PATH);
+$filename = basename($path);
+
+// If it's a local PHP API file, let it be handled directly (don't proxy)
+if (in_array($filename, $localApiFiles)) {
+    // This file should not handle this request - it should go to the actual PHP file
+    // Return 404 to indicate this proxy shouldn't handle it
+    // The web server should route .php files directly
+    return;
+}
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');

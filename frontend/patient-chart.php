@@ -34,7 +34,21 @@ if (!$patient) {
         'blood_type' => 'A+',
         'allergies' => ['Penicillin', 'Sulfa'],
         'room' => '412-A',
-        'attending_physician' => 'Dr. Sarah Wilson'
+        'attending_physician' => 'Dr. Sarah Wilson',
+        'insurance' => [
+            'primary' => [
+                'payer' => 'Blue Cross Blue Shield',
+                'plan' => 'PPO Gold',
+                'policy_number' => 'BCB123456789',
+                'group_number' => 'GRP001',
+                'copay' => '$25',
+                'subscriber' => 'Self'
+            ],
+            'secondary' => [
+                'payer' => 'Medicare',
+                'policy_number' => '1EG4-TE5-MK72'
+            ]
+        ]
     ];
 }
 
@@ -90,6 +104,57 @@ $chart_tabs = [
     'education' => ['label' => 'Education', 'icon' => 'fa-graduation-cap'],
     'care-plan' => ['label' => 'Care Plan', 'icon' => 'fa-clipboard-list'],
     'orders' => ['label' => 'Orders', 'icon' => 'fa-prescription'],
+    'demographics' => ['label' => 'Demographics', 'icon' => 'fa-id-card'],
+    'insurance' => ['label' => 'Insurance', 'icon' => 'fa-shield-alt'],
+];
+
+// Encounter/visit information (from API or demo)
+$encounter = [
+    'type' => 'Inpatient',
+    'status' => 'Active',
+    'admit_date' => date('m/d/Y', strtotime('-2 days')),
+    'expected_discharge' => date('m/d/Y', strtotime('+3 days')),
+    'department' => 'Medical ICU',
+    'room' => $patient['room'] ?? '412-A',
+    'bed' => 'A',
+    'unit' => 'ICU Tower 4',
+    'nursing_station' => '4T',
+    'attending_provider' => $patient['attending_physician'] ?? 'Dr. Sarah Wilson',
+    'primary_nurse' => 'RN Jessica Martinez',
+    'code_status' => 'Full Code',
+    'fall_risk' => true,
+    'isolation' => null,
+    'isolation_type' => null,
+    'alerts' => []
+];
+
+// Sticky notes for this patient
+$sticky_notes = [
+    [
+        'id' => 1,
+        'title' => 'NPO after midnight',
+        'content' => 'Patient is NPO after midnight for procedure tomorrow',
+        'color' => 'yellow',
+        'priority' => 'High',
+        'created_by' => 'Dr. Wilson',
+        'created_at' => date('m/d/Y H:i', strtotime('-4 hours'))
+    ],
+    [
+        'id' => 2,
+        'title' => 'Family contact',
+        'content' => 'Daughter Jane (555-123-4567) is healthcare proxy',
+        'color' => 'blue',
+        'priority' => 'Normal',
+        'created_by' => 'Care Coordinator',
+        'created_at' => date('m/d/Y H:i', strtotime('-1 day'))
+    ]
+];
+    'flowsheets' => ['label' => 'Flowsheets', 'icon' => 'fa-chart-line'],
+    'intake-output' => ['label' => 'Intake/O', 'icon' => 'fa-balance-scale'],
+    'notes' => ['label' => 'Notes', 'icon' => 'fa-sticky-note'],
+    'education' => ['label' => 'Education', 'icon' => 'fa-graduation-cap'],
+    'care-plan' => ['label' => 'Care Plan', 'icon' => 'fa-clipboard-list'],
+    'orders' => ['label' => 'Orders', 'icon' => 'fa-prescription'],
 ];
 
 // Set page title
@@ -99,43 +164,219 @@ $page_title = $patient_name . ' - ' . APP_NAME;
 include 'includes/header.php';
 ?>
 
-    <!-- Patient Header Banner -->
-    <div class="patient-banner">
-        <div class="patient-photo">
-            <i class="fas fa-user"></i>
-        </div>
-        <div class="patient-info-main">
-            <div class="patient-name-row">
-                <span class="patient-name"><?php echo htmlspecialchars($patient_name); ?></span>
-                <span class="patient-age-sex"><?php echo htmlspecialchars($patient_age_sex); ?></span>
+    <!-- Enhanced Patient Header Banner - Epic Hyperspace Style -->
+    <div class="patient-banner enhanced">
+        <!-- Left Section: Photo & Basic Info -->
+        <div class="banner-left">
+            <div class="patient-photo">
+                <i class="fas fa-user"></i>
+                <?php if ($encounter['type'] === 'Inpatient'): ?>
+                <span class="photo-badge inpatient" title="Inpatient">IP</span>
+                <?php elseif ($encounter['type'] === 'Outpatient'): ?>
+                <span class="photo-badge outpatient" title="Outpatient">OP</span>
+                <?php else: ?>
+                <span class="photo-badge" title="<?php echo htmlspecialchars($encounter['type']); ?>"><?php echo substr($encounter['type'], 0, 2); ?></span>
+                <?php endif; ?>
             </div>
-            <div class="patient-ids">
-                <span><label>MRN:</label> <?php echo htmlspecialchars($mrn); ?></span>
-                <span><label>DOB:</label> <?php echo formatDate($patient['date_of_birth'] ?? ''); ?></span>
-                <span><label>Room:</label> <?php echo htmlspecialchars($patient['room'] ?? 'N/A'); ?></span>
-                <?php if (!empty($patient['attending_physician'])): ?>
-                <span><label>Attending:</label> <?php echo htmlspecialchars($patient['attending_physician']); ?></span>
+            <div class="patient-primary-info">
+                <div class="patient-name-row">
+                    <span class="patient-name"><?php echo htmlspecialchars($patient_name); ?></span>
+                    <span class="patient-age-sex"><?php echo htmlspecialchars($patient_age_sex); ?></span>
+                    <?php if (!empty($sticky_notes)): ?>
+                    <button class="sticky-notes-btn" onclick="toggleStickyNotes()" title="<?php echo count($sticky_notes); ?> Sticky Note(s)">
+                        <i class="fas fa-sticky-note"></i>
+                        <span class="sticky-count"><?php echo count($sticky_notes); ?></span>
+                    </button>
+                    <?php endif; ?>
+                </div>
+                <div class="patient-identifiers">
+                    <span class="identifier"><label>MRN:</label> <?php echo htmlspecialchars($mrn); ?></span>
+                    <span class="identifier"><label>DOB:</label> <?php echo formatDate($patient['date_of_birth'] ?? ''); ?></span>
+                    <span class="identifier"><label>SSN:</label> xxx-xx-<?php echo htmlspecialchars($patient['ssn_last_four'] ?? '****'); ?></span>
+                </div>
+                <!-- Encounter Info Row -->
+                <div class="encounter-info-row">
+                    <span class="encounter-status <?php echo strtolower($encounter['status']); ?>">
+                        <i class="fas fa-circle"></i> <?php echo htmlspecialchars($encounter['type']); ?> - <?php echo htmlspecialchars($encounter['status']); ?>
+                    </span>
+                    <span class="encounter-detail">
+                        <i class="fas fa-building"></i> <?php echo htmlspecialchars($encounter['department']); ?>
+                    </span>
+                    <span class="encounter-detail location">
+                        <i class="fas fa-bed"></i> 
+                        <strong><?php echo htmlspecialchars($encounter['room']); ?></strong>
+                        <?php if (!empty($encounter['bed'])): ?>
+                        - Bed <?php echo htmlspecialchars($encounter['bed']); ?>
+                        <?php endif; ?>
+                    </span>
+                    <?php if (!empty($encounter['nursing_station'])): ?>
+                    <span class="encounter-detail">
+                        <i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars($encounter['nursing_station']); ?>
+                    </span>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Section: Alerts & Status -->
+        <div class="banner-center">
+            <div class="alert-badges">
+                <!-- Allergies -->
+                <?php if (!empty($patient['allergies'])): ?>
+                <span class="alert-badge allergy critical" onclick="showAllergyDetails()">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    <?php 
+                    $allergies = is_array($patient['allergies']) ? $patient['allergies'] : [$patient['allergies']];
+                    echo count($allergies) > 2 ? implode(', ', array_slice($allergies, 0, 2)) . ' +' . (count($allergies) - 2) : implode(', ', $allergies);
+                    ?>
+                </span>
+                <?php else: ?>
+                <span class="alert-badge nka">
+                    <i class="fas fa-check"></i> NKA
+                </span>
+                <?php endif; ?>
+                
+                <!-- Code Status -->
+                <span class="alert-badge code-status <?php echo $encounter['code_status'] === 'Full Code' ? 'full-code' : 'limited-code'; ?>" onclick="showCodeStatusModal()">
+                    <i class="fas <?php echo $encounter['code_status'] === 'Full Code' ? 'fa-heartbeat' : 'fa-heart-broken'; ?>"></i>
+                    <?php echo htmlspecialchars($encounter['code_status']); ?>
+                </span>
+                
+                <!-- Fall Risk -->
+                <?php if ($encounter['fall_risk']): ?>
+                <span class="alert-badge fall-risk">
+                    <i class="fas fa-exclamation-circle"></i> Fall Risk
+                </span>
+                <?php endif; ?>
+                
+                <!-- Isolation -->
+                <?php if (!empty($encounter['isolation'])): ?>
+                <span class="alert-badge isolation <?php echo strtolower(str_replace(' ', '-', $encounter['isolation_type'] ?? 'contact')); ?>">
+                    <i class="fas fa-shield-virus"></i> <?php echo htmlspecialchars($encounter['isolation_type'] ?? 'Isolation'); ?>
+                </span>
+                <?php endif; ?>
+            </div>
+            
+            <!-- Care Team Quick View -->
+            <div class="care-team-row">
+                <span class="care-team-member">
+                    <label>Attending:</label> <?php echo htmlspecialchars($encounter['attending_provider']); ?>
+                </span>
+                <?php if (!empty($encounter['primary_nurse'])): ?>
+                <span class="care-team-member">
+                    <label>RN:</label> <?php echo htmlspecialchars($encounter['primary_nurse']); ?>
+                </span>
                 <?php endif; ?>
             </div>
         </div>
-        <div class="patient-alerts">
-            <?php if (!empty($patient['allergies'])): ?>
-            <span class="alert-badge allergy">
-                <i class="fas fa-exclamation-triangle"></i> 
-                <?php echo is_array($patient['allergies']) ? implode(', ', $patient['allergies']) : $patient['allergies']; ?>
-            </span>
-            <?php endif; ?>
-            <span class="alert-badge code-status">Full Code</span>
-            <span class="alert-badge fall-risk">Fall Risk</span>
-        </div>
-        <div class="patient-info-boxes">
-            <div class="patient-info-box">
-                <label>Blood Type</label>
-                <span class="value"><?php echo htmlspecialchars($patient['blood_type'] ?? 'Unknown'); ?></span>
+
+        <!-- Right Section: Quick Info Boxes -->
+        <div class="banner-right">
+            <div class="info-boxes-row">
+                <div class="patient-info-box">
+                    <label>Blood Type</label>
+                    <span class="value"><?php echo htmlspecialchars($patient['blood_type'] ?? 'Unknown'); ?></span>
+                </div>
+                <div class="patient-info-box">
+                    <label>Admit</label>
+                    <span class="value"><?php echo htmlspecialchars($encounter['admit_date']); ?></span>
+                </div>
+                <div class="patient-info-box">
+                    <label>Exp D/C</label>
+                    <span class="value"><?php echo htmlspecialchars($encounter['expected_discharge'] ?? 'TBD'); ?></span>
+                </div>
+                <?php if (!empty($patient['insurance']['primary'])): ?>
+                <div class="patient-info-box insurance-box" title="Click for insurance details" onclick="showInsuranceModal()">
+                    <label>Insurance</label>
+                    <span class="value"><?php echo htmlspecialchars($patient['insurance']['primary']['payer'] ?? 'Unknown'); ?></span>
+                    <span class="insurance-plan"><?php echo htmlspecialchars($patient['insurance']['primary']['plan'] ?? ''); ?></span>
+                </div>
+                <?php endif; ?>
             </div>
-            <div class="patient-info-box">
-                <label>Isolation</label>
-                <span class="value">None</span>
+            
+            <!-- Banner Actions -->
+            <div class="banner-actions">
+                <button class="banner-action-btn" onclick="printChart()" title="Print">
+                    <i class="fas fa-print"></i>
+                </button>
+                <button class="banner-action-btn" onclick="refreshChart()" title="Refresh">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button class="banner-action-btn" onclick="showPatientActions()" title="More Actions">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sticky Notes Panel (hidden by default) -->
+    <div id="stickyNotesPanel" class="sticky-notes-panel" style="display:none;">
+        <div class="sticky-notes-header">
+            <h4><i class="fas fa-sticky-note"></i> Sticky Notes</h4>
+            <div class="sticky-notes-actions">
+                <button class="btn btn-sm btn-primary" onclick="addStickyNote()"><i class="fas fa-plus"></i> Add Note</button>
+                <button class="close-btn" onclick="toggleStickyNotes()">&times;</button>
+            </div>
+        </div>
+        <div class="sticky-notes-list">
+            <?php foreach ($sticky_notes as $note): ?>
+            <div class="sticky-note <?php echo htmlspecialchars($note['color']); ?>">
+                <div class="sticky-note-header">
+                    <strong><?php echo htmlspecialchars($note['title']); ?></strong>
+                    <?php if ($note['priority'] === 'High'): ?>
+                    <span class="priority-badge high">High</span>
+                    <?php endif; ?>
+                </div>
+                <div class="sticky-note-content">
+                    <?php echo htmlspecialchars($note['content']); ?>
+                </div>
+                <div class="sticky-note-footer">
+                    <span class="note-author"><?php echo htmlspecialchars($note['created_by']); ?></span>
+                    <span class="note-date"><?php echo htmlspecialchars($note['created_at']); ?></span>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <!-- Insurance Details Modal -->
+    <div id="insuranceModal" class="modal" style="display:none;">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-id-card"></i> Insurance Information</h5>
+                    <button type="button" class="close" onclick="closeInsuranceModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <?php if (!empty($patient['insurance']['primary'])): ?>
+                    <div class="insurance-section">
+                        <h6><i class="fas fa-star"></i> Primary Insurance</h6>
+                        <table class="insurance-detail-table">
+                            <tr><td>Payer:</td><td><strong><?php echo htmlspecialchars($patient['insurance']['primary']['payer'] ?? 'N/A'); ?></strong></td></tr>
+                            <tr><td>Plan:</td><td><?php echo htmlspecialchars($patient['insurance']['primary']['plan'] ?? 'N/A'); ?></td></tr>
+                            <tr><td>Policy #:</td><td><?php echo htmlspecialchars($patient['insurance']['primary']['policy_number'] ?? 'N/A'); ?></td></tr>
+                            <tr><td>Group #:</td><td><?php echo htmlspecialchars($patient['insurance']['primary']['group_number'] ?? 'N/A'); ?></td></tr>
+                            <tr><td>Copay:</td><td><?php echo htmlspecialchars($patient['insurance']['primary']['copay'] ?? 'N/A'); ?></td></tr>
+                            <tr><td>Subscriber:</td><td><?php echo htmlspecialchars($patient['insurance']['primary']['subscriber'] ?? 'N/A'); ?></td></tr>
+                        </table>
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($patient['insurance']['secondary'])): ?>
+                    <div class="insurance-section" style="margin-top:15px;">
+                        <h6><i class="fas fa-star-half-alt"></i> Secondary Insurance</h6>
+                        <table class="insurance-detail-table">
+                            <tr><td>Payer:</td><td><strong><?php echo htmlspecialchars($patient['insurance']['secondary']['payer'] ?? 'N/A'); ?></strong></td></tr>
+                            <tr><td>Policy #:</td><td><?php echo htmlspecialchars($patient['insurance']['secondary']['policy_number'] ?? 'N/A'); ?></td></tr>
+                        </table>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeInsuranceModal()">Close</button>
+                    <a href="insurance.php?patient_id=<?php echo $patient_id; ?>" class="btn btn-primary">
+                        <i class="fas fa-external-link-alt"></i> Full Insurance Details
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -167,8 +408,8 @@ include 'includes/header.php';
             <div class="subnav-search">
                 <input type="text" placeholder="Filter...">
             </div>
-            <button class="btn btn-sm btn-secondary"><i class="fas fa-print"></i> Print</button>
-            <button class="btn btn-sm btn-secondary"><i class="fas fa-sync"></i> Refresh</button>
+            <button class="btn btn-sm btn-secondary" onclick="printChart()"><i class="fas fa-print"></i> Print</button>
+            <button class="btn btn-sm btn-secondary" onclick="refreshChart()"><i class="fas fa-sync"></i> Refresh</button>
         </div>
     </div>
 
@@ -203,6 +444,12 @@ include 'includes/header.php';
                 case 'chart-review':
                     include 'activities/chart-review-content.php';
                     break;
+                case 'demographics':
+                    include 'activities/demographics-content.php';
+                    break;
+                case 'insurance':
+                    include 'activities/insurance-content.php';
+                    break;
                 default:
                     include 'activities/summary-content.php';
                     break;
@@ -210,5 +457,972 @@ include 'includes/header.php';
             ?>
         </main>
     </div>
+
+<style>
+/* Enhanced Patient Banner Styles */
+.patient-banner.enhanced {
+    display: flex;
+    align-items: stretch;
+    background: linear-gradient(to bottom, #e8f4fc, #dceef8);
+    border-bottom: 2px solid #b8d4e8;
+    padding: 0;
+    min-height: 90px;
+}
+
+.banner-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 15px;
+    flex: 0 0 auto;
+}
+
+.banner-left .patient-photo {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #f5f5f5, #e0e0e0);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: #888;
+    position: relative;
+    border: 2px solid #ccc;
+}
+
+.banner-left .photo-badge {
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    background: #1a4a5e;
+    color: white;
+    font-size: 9px;
+    font-weight: bold;
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+.photo-badge.inpatient { background: #1565c0; }
+.photo-badge.outpatient { background: #558b2f; }
+
+.patient-primary-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.patient-name-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.patient-name-row .patient-name {
+    font-size: 17px;
+    font-weight: 600;
+    color: #0d47a1;
+}
+
+.patient-name-row .patient-age-sex {
+    font-size: 13px;
+    color: #555;
+    background: #f0f0f0;
+    padding: 2px 8px;
+    border-radius: 3px;
+}
+
+.sticky-notes-btn {
+    background: #fff8c5;
+    border: 1px solid #f0c36d;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: #8b6914;
+}
+
+.sticky-notes-btn:hover {
+    background: #fff3a0;
+}
+
+.sticky-count {
+    background: #e65100;
+    color: white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.patient-identifiers {
+    display: flex;
+    gap: 15px;
+    font-size: 12px;
+}
+
+.patient-identifiers .identifier label {
+    font-weight: 600;
+    color: #666;
+}
+
+.encounter-info-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+.encounter-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 600;
+}
+
+.encounter-status i {
+    font-size: 8px;
+}
+
+.encounter-status.active { color: #2e7d32; }
+.encounter-status.active i { color: #4caf50; }
+.encounter-status.discharged { color: #666; }
+.encounter-status.transferred { color: #1565c0; }
+
+.encounter-detail {
+    color: #555;
+}
+
+.encounter-detail.location {
+    font-weight: 600;
+    color: #1565c0;
+}
+
+.banner-center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 10px 15px;
+    border-left: 1px solid #c8dce8;
+    border-right: 1px solid #c8dce8;
+}
+
+.alert-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.alert-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.alert-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.alert-badge.allergy {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ef9a9a;
+}
+
+.alert-badge.allergy.critical {
+    background: #c62828;
+    color: white;
+    border-color: #b71c1c;
+    animation: pulse-alert 2s infinite;
+}
+
+@keyframes pulse-alert {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
+
+.alert-badge.nka {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #a5d6a7;
+}
+
+.alert-badge.code-status {
+    background: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #90caf9;
+}
+
+.alert-badge.code-status.limited-code {
+    background: #fff3e0;
+    color: #e65100;
+    border: 1px solid #ffcc80;
+}
+
+.alert-badge.fall-risk {
+    background: #fff8e1;
+    color: #f57f17;
+    border: 1px solid #ffe082;
+}
+
+.alert-badge.isolation {
+    background: #f3e5f5;
+    color: #7b1fa2;
+    border: 1px solid #ce93d8;
+}
+
+.alert-badge.isolation.airborne {
+    background: #ffcdd2;
+    color: #c62828;
+}
+
+.alert-badge.isolation.contact {
+    background: #fff9c4;
+    color: #f9a825;
+}
+
+.alert-badge.isolation.droplet {
+    background: #b3e5fc;
+    color: #0277bd;
+}
+
+.care-team-row {
+    display: flex;
+    gap: 20px;
+    font-size: 11px;
+    color: #555;
+}
+
+.care-team-member label {
+    font-weight: 600;
+    color: #777;
+}
+
+.banner-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 10px 15px;
+    gap: 8px;
+}
+
+.info-boxes-row {
+    display: flex;
+    gap: 10px;
+}
+
+.patient-info-box {
+    background: white;
+    border: 1px solid #d0d8e0;
+    border-radius: 4px;
+    padding: 6px 12px;
+    text-align: center;
+    min-width: 70px;
+}
+
+.patient-info-box label {
+    display: block;
+    font-size: 9px;
+    color: #888;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.patient-info-box .value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+}
+
+.banner-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.banner-action-btn {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #c8d0d8;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    transition: all 0.15s;
+}
+
+.banner-action-btn:hover {
+    background: #f0f4f8;
+    color: #1a4a5e;
+    border-color: #1a4a5e;
+}
+
+/* Sticky Notes Panel */
+.sticky-notes-panel {
+    position: absolute;
+    top: 90px;
+    right: 20px;
+    width: 350px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    z-index: 1000;
+}
+
+.sticky-notes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: linear-gradient(to bottom, #1a4a5e, #0d3545);
+    color: white;
+    border-radius: 8px 8px 0 0;
+}
+
+.sticky-notes-header h4 {
+    margin: 0;
+    font-size: 14px;
+}
+
+.sticky-notes-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sticky-notes-header .close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.sticky-notes-list {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.sticky-note {
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-left: 4px solid #f0c36d;
+}
+
+.sticky-note.yellow {
+    background: #fffde7;
+    border-left-color: #f0c36d;
+}
+
+.sticky-note.blue {
+    background: #e3f2fd;
+    border-left-color: #42a5f5;
+}
+
+.sticky-note.green {
+    background: #e8f5e9;
+    border-left-color: #66bb6a;
+}
+
+.sticky-note.red {
+    background: #ffebee;
+    border-left-color: #ef5350;
+}
+
+.sticky-note.purple {
+    background: #f3e5f5;
+    border-left-color: #ab47bc;
+}
+
+.sticky-note-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.sticky-note-header strong {
+    font-size: 12px;
+}
+
+.priority-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+}
+
+.priority-badge.high {
+    background: #c62828;
+    color: white;
+}
+
+.sticky-note-content {
+    font-size: 12px;
+    color: #555;
+    line-height: 1.4;
+}
+
+.sticky-note-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 10px;
+    color: #888;
+}
+
+/* Insurance box styling */
+.insurance-box {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.insurance-box:hover {
+    background: #e3f2fd;
+    transform: translateY(-1px);
+}
+.insurance-plan {
+    display: block;
+    font-size: 10px;
+    color: #666;
+    margin-top: 2px;
+}
+
+/* Insurance Modal */
+#insuranceModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#insuranceModal .modal-dialog {
+    background: white;
+    border-radius: 8px;
+    width: 500px;
+    max-width: 90%;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+#insuranceModal .modal-header {
+    padding: 15px 20px;
+    background: linear-gradient(to bottom, #1a4a5e, #0d3545);
+    color: white;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+#insuranceModal .modal-header .close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+}
+#insuranceModal .modal-body {
+    padding: 20px;
+}
+#insuranceModal .modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+.insurance-section h6 {
+    color: #1a4a5e;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+.insurance-detail-table {
+    width: 100%;
+}
+.insurance-detail-table td {
+    padding: 5px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+.insurance-detail-table td:first-child {
+    color: #666;
+    width: 100px;
+}
+
+/* Print styles */
+@media print {
+    .sidebar, .header-bar, .chart-subnav, .patient-banner .patient-photo,
+    .subnav-actions, #insuranceModal, .btn {
+        display: none !important;
+    }
+    .chart-content {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .patient-banner {
+        border: 1px solid #000;
+        padding: 10px;
+        margin-bottom: 20px;
+    }
+    body {
+        background: white !important;
+    }
+    .chart-main {
+        box-shadow: none !important;
+    }
+}
+</style>
+
+<script>
+// Insurance Modal Functions
+function showInsuranceModal() {
+    document.getElementById('insuranceModal').style.display = 'flex';
+}
+
+function closeInsuranceModal() {
+    document.getElementById('insuranceModal').style.display = 'none';
+}
+
+// Close modal on outside click
+document.getElementById('insuranceModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeInsuranceModal();
+    }
+});
+
+// Sticky Notes Panel
+function toggleStickyNotes() {
+    const panel = document.getElementById('stickyNotesPanel');
+    if (panel) {
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+function addStickyNote() {
+    // Show add sticky note modal
+    const modal = document.createElement('div');
+    modal.id = 'addStickyNoteModal';
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-dialog" style="width:400px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-sticky-note"></i> Add Sticky Note</h5>
+                    <button type="button" class="close" onclick="this.closest('.modal').remove()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label>Title</label>
+                        <input type="text" id="stickyTitle" class="form-control" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label>Content</label>
+                        <textarea id="stickyContent" class="form-control" rows="3" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;"></textarea>
+                    </div>
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label>Color</label>
+                        <select id="stickyColor" class="form-control" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;">
+                            <option value="yellow">Yellow</option>
+                            <option value="blue">Blue</option>
+                            <option value="green">Green</option>
+                            <option value="red">Red</option>
+                            <option value="purple">Purple</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <select id="stickyPriority" class="form-control" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;">
+                            <option value="Normal">Normal</option>
+                            <option value="High">High</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;padding:15px 20px;border-top:1px solid #e0e0e0;">
+                    <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveStickyNote()">Save Note</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function saveStickyNote() {
+    const title = document.getElementById('stickyTitle').value;
+    const content = document.getElementById('stickyContent').value;
+    const color = document.getElementById('stickyColor').value;
+    const priority = document.getElementById('stickyPriority').value;
+    
+    if (!title || !content) {
+        alert('Please fill in title and content');
+        return;
+    }
+    
+    // In a real app, this would save to the backend
+    // For now, add to the DOM
+    const noteHtml = `
+        <div class="sticky-note ${color}">
+            <div class="sticky-note-header">
+                <strong>${title}</strong>
+                ${priority === 'High' ? '<span class="priority-badge high">High</span>' : ''}
+            </div>
+            <div class="sticky-note-content">${content}</div>
+            <div class="sticky-note-footer">
+                <span class="note-author">Current User</span>
+                <span class="note-date">${new Date().toLocaleString()}</span>
+            </div>
+        </div>
+    `;
+    
+    document.querySelector('.sticky-notes-list').insertAdjacentHTML('afterbegin', noteHtml);
+    document.getElementById('addStickyNoteModal').remove();
+    
+    // Update count
+    const countEl = document.querySelector('.sticky-count');
+    if (countEl) {
+        countEl.textContent = parseInt(countEl.textContent) + 1;
+    }
+}
+
+// Patient Actions Menu
+function showPatientActions() {
+    const existingMenu = document.getElementById('patientActionsMenu');
+    if (existingMenu) {
+        existingMenu.remove();
+        return;
+    }
+    
+    const menu = document.createElement('div');
+    menu.id = 'patientActionsMenu';
+    menu.style.cssText = `
+        position: absolute;
+        top: 90px;
+        right: 15px;
+        background: white;
+        border-radius: 6px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        z-index: 1000;
+        min-width: 200px;
+    `;
+    menu.innerHTML = `
+        <div style="padding:8px 0;">
+            <a href="#" onclick="changePatientStatus()" style="display:block;padding:10px 15px;color:#333;text-decoration:none;font-size:13px;">
+                <i class="fas fa-exchange-alt" style="width:20px;"></i> Change Status
+            </a>
+            <a href="#" onclick="showCodeStatusModal()" style="display:block;padding:10px 15px;color:#333;text-decoration:none;font-size:13px;">
+                <i class="fas fa-heartbeat" style="width:20px;"></i> Update Code Status
+            </a>
+            <a href="#" onclick="toggleStickyNotes()" style="display:block;padding:10px 15px;color:#333;text-decoration:none;font-size:13px;">
+                <i class="fas fa-sticky-note" style="width:20px;"></i> Sticky Notes
+            </a>
+            <div style="border-top:1px solid #e0e0e0;margin:5px 0;"></div>
+            <a href="?id=<?php echo $patient_id; ?>&tab=demographics" style="display:block;padding:10px 15px;color:#333;text-decoration:none;font-size:13px;">
+                <i class="fas fa-id-card" style="width:20px;"></i> Demographics
+            </a>
+            <a href="?id=<?php echo $patient_id; ?>&tab=insurance" style="display:block;padding:10px 15px;color:#333;text-decoration:none;font-size:13px;">
+                <i class="fas fa-shield-alt" style="width:20px;"></i> Insurance Details
+            </a>
+            <div style="border-top:1px solid #e0e0e0;margin:5px 0;"></div>
+            <a href="#" onclick="printChart()" style="display:block;padding:10px 15px;color:#333;text-decoration:none;font-size:13px;">
+                <i class="fas fa-print" style="width:20px;"></i> Print Chart
+            </a>
+        </div>
+    `;
+    
+    document.body.appendChild(menu);
+    
+    // Close on click outside
+    setTimeout(() => {
+        document.addEventListener('click', function closeMenu(e) {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        });
+    }, 100);
+}
+
+// Change Patient Status
+function changePatientStatus() {
+    document.getElementById('patientActionsMenu')?.remove();
+    
+    const modal = document.createElement('div');
+    modal.id = 'changeStatusModal';
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-dialog" style="width:400px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-exchange-alt"></i> Change Patient Status</h5>
+                    <button type="button" class="close" onclick="this.closest('.modal').remove()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label>Current Status</label>
+                        <div style="padding:8px;background:#f0f0f0;border-radius:4px;font-weight:500;">
+                            <?php echo htmlspecialchars($encounter['type']); ?> - <?php echo htmlspecialchars($encounter['status']); ?>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label>New Status</label>
+                        <select id="newStatus" class="form-control" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;">
+                            <option value="">Select New Status...</option>
+                            <option value="Active">Active</option>
+                            <option value="Discharged">Discharged</option>
+                            <option value="Transferred">Transferred</option>
+                            <option value="Left AMA">Left AMA</option>
+                            <option value="Expired">Expired</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label>Encounter Type</label>
+                        <select id="newEncounterType" class="form-control" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;">
+                            <option value="Inpatient">Inpatient</option>
+                            <option value="Outpatient">Outpatient</option>
+                            <option value="Observation">Observation</option>
+                            <option value="Emergency">Emergency</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Reason for Change</label>
+                        <textarea id="statusChangeReason" class="form-control" rows="2" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;padding:15px 20px;border-top:1px solid #e0e0e0;">
+                    <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveStatusChange()">Update Status</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function saveStatusChange() {
+    alert('Status change saved (demo mode)');
+    document.getElementById('changeStatusModal').remove();
+    location.reload();
+}
+
+// Code Status Modal
+function showCodeStatusModal() {
+    document.getElementById('patientActionsMenu')?.remove();
+    
+    const modal = document.createElement('div');
+    modal.id = 'codeStatusModal';
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-dialog" style="width:400px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-heartbeat"></i> Update Code Status</h5>
+                    <button type="button" class="close" onclick="this.closest('.modal').remove()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label>Current Code Status</label>
+                        <div style="padding:8px;background:#f0f0f0;border-radius:4px;font-weight:500;">
+                            <?php echo htmlspecialchars($encounter['code_status']); ?>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label>New Code Status</label>
+                        <select id="newCodeStatus" class="form-control" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;">
+                            <option value="Full Code">Full Code</option>
+                            <option value="DNR">DNR (Do Not Resuscitate)</option>
+                            <option value="DNI">DNI (Do Not Intubate)</option>
+                            <option value="DNR/DNI">DNR/DNI</option>
+                            <option value="Comfort Care">Comfort Care Only</option>
+                            <option value="Limited Code">Limited Code</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Documentation</label>
+                        <textarea id="codeStatusNotes" class="form-control" rows="2" placeholder="Document discussion with patient/family..." style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;padding:15px 20px;border-top:1px solid #e0e0e0;">
+                    <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveCodeStatus()">Update Code Status</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function saveCodeStatus() {
+    alert('Code status updated (demo mode)');
+    document.getElementById('codeStatusModal').remove();
+    location.reload();
+}
+
+// Allergy Details
+function showAllergyDetails() {
+    const allergies = <?php echo json_encode($patient['allergies'] ?? []); ?>;
+    let allergiesHtml = '<ul style="margin:0;padding-left:20px;">';
+    allergies.forEach(a => {
+        allergiesHtml += `<li style="margin-bottom:5px;">${a}</li>`;
+    });
+    allergiesHtml += '</ul>';
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-dialog" style="width:350px;">
+            <div class="modal-content">
+                <div class="modal-header" style="background:#c62828;">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle"></i> Allergies</h5>
+                    <button type="button" class="close" onclick="this.closest('.modal').remove()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    ${allergiesHtml}
+                </div>
+                <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;padding:15px 20px;border-top:1px solid #e0e0e0;">
+                    <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeInsuranceModal();
+        document.getElementById('stickyNotesPanel')?.style.display === 'block' && toggleStickyNotes();
+        document.querySelectorAll('.modal').forEach(m => m.remove());
+    }
+});
+        closeInsuranceModal();
+    }
+});
+
+// Print Chart Function
+function printChart() {
+    // Get patient info for print header
+    const patientName = <?php echo json_encode($patient_name); ?>;
+    const mrn = <?php echo json_encode($mrn); ?>;
+    const currentTab = <?php echo json_encode($current_tab); ?>;
+    
+    // Create print-friendly version
+    const printWindow = window.open('', '_blank');
+    const content = document.querySelector('.chart-main').innerHTML;
+    const banner = document.querySelector('.patient-banner').outerHTML;
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>${patientName} - ${currentTab.charAt(0).toUpperCase() + currentTab.slice(1)} - Print</title>
+            <link rel="stylesheet" href="assets/css/openspace.css">
+            <style>
+                body { 
+                    padding: 20px; 
+                    background: white;
+                    font-family: Arial, sans-serif;
+                }
+                .print-header {
+                    border-bottom: 2px solid #1a4a5e;
+                    padding-bottom: 10px;
+                    margin-bottom: 20px;
+                }
+                .print-header h1 {
+                    font-size: 18px;
+                    margin: 0;
+                    color: #1a4a5e;
+                }
+                .print-header .print-meta {
+                    font-size: 12px;
+                    color: #666;
+                    margin-top: 5px;
+                }
+                .patient-banner {
+                    display: flex;
+                    gap: 15px;
+                    padding: 15px;
+                    background: #f8f9fa;
+                    border: 1px solid #ddd;
+                    margin-bottom: 20px;
+                }
+                .patient-photo { display: none; }
+                .patient-info-main { flex: 1; }
+                .patient-name { font-weight: bold; font-size: 16px; }
+                .patient-ids span { margin-right: 15px; font-size: 12px; }
+                .patient-ids label { font-weight: bold; }
+                .alert-badge { 
+                    display: inline-block; 
+                    padding: 2px 8px; 
+                    border-radius: 3px; 
+                    font-size: 11px;
+                    margin-right: 5px;
+                }
+                .alert-badge.allergy { background: #ffebee; color: #c62828; }
+                .patient-info-boxes { display: none; }
+                @media print {
+                    body { padding: 0; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="print-header">
+                <h1><?php echo htmlspecialchars(APP_NAME); ?> - Patient Chart</h1>
+                <div class="print-meta">
+                    Printed: ${new Date().toLocaleString()} | Tab: ${currentTab.charAt(0).toUpperCase() + currentTab.slice(1)}
+                </div>
+            </div>
+            ${banner}
+            <div class="chart-content">
+                ${content}
+            </div>
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
+    
+    // Wait for content to load then print
+    printWindow.onload = function() {
+        printWindow.focus();
+        printWindow.print();
+    };
+}
+
+// Refresh Chart Function
+function refreshChart() {
+    location.reload();
+}
+</script>
 
 <?php include 'includes/footer.php'; ?>

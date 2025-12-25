@@ -3,8 +3,13 @@
 
 RewriteEngine On
 
-# Proxy API requests to Python backend
+# Don't proxy local PHP API files - let them be handled directly
+RewriteCond %{REQUEST_URI} ^/api/.*\.php$
+RewriteRule .* - [L]
+
+# Proxy API requests to Python backend (only non-PHP API calls)
 RewriteCond %{REQUEST_URI} ^/api/
+RewriteCond %{REQUEST_URI} !\.php$
 RewriteRule ^api/(.*)$ http://localhost:5000/api/$1 [P,L]
 
 # Don't rewrite actual files or directories

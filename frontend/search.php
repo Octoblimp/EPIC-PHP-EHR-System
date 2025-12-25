@@ -6,11 +6,23 @@
 require_once 'includes/config.php';
 require_once 'includes/api.php';
 
+// Check if patient protection is enabled
+$patient_protection_enabled = defined('PATIENT_PROTECTION_ENABLED') ? PATIENT_PROTECTION_ENABLED : false;
+if (file_exists('includes/patient_protection.php')) {
+    require_once 'includes/patient_protection.php';
+    $patient_protection_enabled = true;
+}
+
 $page_title = 'Search - ' . APP_NAME;
 $query = $_GET['q'] ?? '';
 
 include 'includes/header.php';
 ?>
+
+<script>
+    // Pass PHP configuration to JavaScript
+    window.PATIENT_PROTECTION_ENABLED = <?php echo json_encode($patient_protection_enabled); ?>;
+</script>
 
 <style>
 .search-page {
@@ -469,7 +481,7 @@ function displayResults(results, query) {
                         <div class="result-icon patient"><i class="fas fa-user"></i></div>
                         <div class="result-info">
                             <div class="result-title">${highlightMatch(p.name, query)}</div>
-                            <div class="result-subtitle">MRN: ${highlightMatch(p.mrn, query)} | DOB: ${p.dob}</div>
+                            <div class="result-subtitle">MRN: ${highlightMatch(p.mrn, query)}${window.PATIENT_PROTECTION_ENABLED ? '' : ` | DOB: ${p.dob}`}</div>
                         </div>
                         <div class="result-meta">Room: ${p.room}</div>
                     </div>

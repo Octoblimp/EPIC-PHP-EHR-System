@@ -41,6 +41,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $settings['show_photos'] = isset($_POST['show_photos']);
             $success_message = 'Display settings saved.';
             break;
+        case 'save_sidebar':
+            $_SESSION['user_settings']['sidebar_favorites'] = $_POST['sidebar_favorites'] ?? ['summary', 'flowsheets', 'notes', 'mar', 'orders', 'results'];
+            $success_message = 'Sidebar customization saved.';
+            break;
         case 'save_clinical':
             $settings['default_tab'] = $_POST['default_tab'] ?? 'summary';
             $settings['patient_list_view'] = $_POST['patient_list_view'] ?? 'list';
@@ -78,6 +82,7 @@ require_once 'includes/header.php';
             <!-- Settings Navigation -->
             <div class="settings-nav">
                 <a href="#display" class="active"><i class="fas fa-desktop"></i> Display</a>
+                <a href="#sidebar"><i class="fas fa-th-list"></i> Sidebar</a>
                 <a href="#clinical"><i class="fas fa-stethoscope"></i> Clinical Workflow</a>
                 <a href="#system"><i class="fas fa-sliders-h"></i> System</a>
                 <a href="#shortcuts"><i class="fas fa-keyboard"></i> Keyboard Shortcuts</a>
@@ -173,6 +178,73 @@ require_once 'includes/header.php';
                         <div class="form-actions">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-save"></i> Save Display Settings
+                            </button>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- Sidebar Customization -->
+                <section id="sidebar" class="settings-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-th-list"></i> Sidebar Customization</h2>
+                    </div>
+                    <p class="section-desc">Select which items appear in your patient chart sidebar. Checked items will be shown as quick access buttons.</p>
+                    
+                    <?php
+                    $sidebar_favorites = $_SESSION['user_settings']['sidebar_favorites'] ?? ['summary', 'flowsheets', 'notes', 'mar', 'orders', 'results'];
+                    $available_items = [
+                        'summary' => ['icon' => 'fa-clipboard', 'label' => 'Summary'],
+                        'chart-review' => ['icon' => 'fa-file-medical', 'label' => 'Chart Review'],
+                        'results' => ['icon' => 'fa-flask', 'label' => 'Results'],
+                        'work-list' => ['icon' => 'fa-tasks', 'label' => 'Work List'],
+                        'mar' => ['icon' => 'fa-pills', 'label' => 'MAR'],
+                        'flowsheets' => ['icon' => 'fa-chart-line', 'label' => 'Flowsheets'],
+                        'intake-output' => ['icon' => 'fa-balance-scale', 'label' => 'Intake/Output'],
+                        'notes' => ['icon' => 'fa-sticky-note', 'label' => 'Notes'],
+                        'education' => ['icon' => 'fa-graduation-cap', 'label' => 'Education'],
+                        'care-plan' => ['icon' => 'fa-clipboard-list', 'label' => 'Care Plan'],
+                        'orders' => ['icon' => 'fa-prescription', 'label' => 'Orders'],
+                        'demographics' => ['icon' => 'fa-id-card', 'label' => 'Demographics'],
+                        'insurance' => ['icon' => 'fa-file-invoice-dollar', 'label' => 'Insurance'],
+                        'history' => ['icon' => 'fa-history', 'label' => 'History'],
+                    ];
+                    ?>
+                    
+                    <form method="POST" class="settings-form">
+                        <input type="hidden" name="action" value="save_sidebar">
+                        
+                        <div class="sidebar-customize-grid">
+                            <?php foreach ($available_items as $key => $item): 
+                                $isChecked = in_array($key, $sidebar_favorites);
+                            ?>
+                            <label class="sidebar-customize-item <?php echo $isChecked ? 'selected' : ''; ?>">
+                                <input type="checkbox" name="sidebar_favorites[]" value="<?php echo $key; ?>" <?php echo $isChecked ? 'checked' : ''; ?>>
+                                <i class="fas <?php echo $item['icon']; ?>"></i>
+                                <span><?php echo $item['label']; ?></span>
+                            </label>
+                            <?php endforeach; ?>
+                        </div>
+                        
+                        <div class="sidebar-preview-section">
+                            <h4>Preview</h4>
+                            <div class="sidebar-preview" id="sidebarPreview">
+                                <?php foreach ($sidebar_favorites as $key): 
+                                    if (isset($available_items[$key])):
+                                ?>
+                                <div class="preview-item">
+                                    <i class="fas <?php echo $available_items[$key]['icon']; ?>"></i>
+                                    <span><?php echo $available_items[$key]['label']; ?></span>
+                                </div>
+                                <?php endif; endforeach; ?>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Sidebar Settings
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="resetSidebarDefaults()">
+                                <i class="fas fa-undo"></i> Reset to Defaults
                             </button>
                         </div>
                     </form>
@@ -744,6 +816,96 @@ kbd {
     font-size: 13px;
 }
 
+/* Sidebar Customization Styles */
+.section-desc {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.sidebar-customize-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.sidebar-customize-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 15px;
+    background: #f8f9fa;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.sidebar-customize-item:hover {
+    background: #f0f4f8;
+    border-color: #c0c8d0;
+}
+
+.sidebar-customize-item.selected {
+    background: #e3f2fd;
+    border-color: #1a4a5e;
+}
+
+.sidebar-customize-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #1a4a5e;
+}
+
+.sidebar-customize-item i {
+    color: #1a4a5e;
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+}
+
+.sidebar-customize-item span {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.sidebar-preview-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.sidebar-preview-section h4 {
+    font-size: 13px;
+    color: #666;
+    margin: 0 0 12px;
+}
+
+.sidebar-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 200px;
+}
+
+.sidebar-preview .preview-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 4px;
+    font-size: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.sidebar-preview .preview-item i {
+    color: #1a4a5e;
+    width: 16px;
+}
+
 @media (max-width: 800px) {
     .settings-layout {
         grid-template-columns: 1fr;
@@ -787,6 +949,97 @@ document.querySelectorAll('.settings-nav a').forEach(link => {
         document.querySelector(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 });
+
+// Sidebar customization
+const sidebarItems = document.querySelectorAll('.sidebar-customize-item');
+const sidebarPreview = document.querySelector('.sidebar-preview');
+const defaultSidebarItems = ['home', 'schedule', 'patients', 'inbox', 'notes', 'admin'];
+
+// Item label mapping
+const itemLabels = {
+    'home': { icon: 'fa-home', label: 'Home' },
+    'schedule': { icon: 'fa-calendar-alt', label: 'Schedule' },
+    'patients': { icon: 'fa-users', label: 'Patients' },
+    'patient-lists': { icon: 'fa-clipboard-list', label: 'Patient Lists' },
+    'inbox': { icon: 'fa-inbox', label: 'Inbox' },
+    'notes': { icon: 'fa-sticky-note', label: 'Notes' },
+    'admin': { icon: 'fa-cog', label: 'Admin' },
+    'flowsheets': { icon: 'fa-chart-line', label: 'Flowsheets' },
+    'mar': { icon: 'fa-pills', label: 'MAR' },
+    'orders': { icon: 'fa-file-medical', label: 'Orders' },
+    'results': { icon: 'fa-flask', label: 'Results' },
+    'summary': { icon: 'fa-list-alt', label: 'Summary' },
+    'chart-review': { icon: 'fa-folder-open', label: 'Chart Review' },
+    'care-plan': { icon: 'fa-heartbeat', label: 'Care Plan' }
+};
+
+function updateSidebarPreview() {
+    if (!sidebarPreview) return;
+    
+    const checkedItems = document.querySelectorAll('.sidebar-customize-item input:checked');
+    sidebarPreview.innerHTML = '';
+    
+    checkedItems.forEach(checkbox => {
+        const item = itemLabels[checkbox.value];
+        if (item) {
+            const previewItem = document.createElement('div');
+            previewItem.className = 'preview-item';
+            previewItem.innerHTML = `<i class="fas ${item.icon}"></i><span>${item.label}</span>`;
+            sidebarPreview.appendChild(previewItem);
+        }
+    });
+    
+    if (sidebarPreview.children.length === 0) {
+        sidebarPreview.innerHTML = '<div class="preview-item" style="color:#999;">No items selected</div>';
+    }
+}
+
+function updateItemStyles() {
+    sidebarItems.forEach(item => {
+        const checkbox = item.querySelector('input[type="checkbox"]');
+        if (checkbox.checked) {
+            item.classList.add('selected');
+        } else {
+            item.classList.remove('selected');
+        }
+    });
+}
+
+// Make entire item clickable
+sidebarItems.forEach(item => {
+    item.addEventListener('click', function(e) {
+        if (e.target.type !== 'checkbox') {
+            const checkbox = this.querySelector('input[type="checkbox"]');
+            checkbox.checked = !checkbox.checked;
+        }
+        updateItemStyles();
+        updateSidebarPreview();
+    });
+});
+
+function resetSidebarDefaults() {
+    document.querySelectorAll('.sidebar-customize-item input').forEach(checkbox => {
+        checkbox.checked = defaultSidebarItems.includes(checkbox.value);
+    });
+    updateItemStyles();
+    updateSidebarPreview();
+}
+
+// Initial setup
+updateItemStyles();
+updateSidebarPreview();
+
+// Handle hash navigation on page load
+if (window.location.hash) {
+    const targetLink = document.querySelector(`.settings-nav a[href="${window.location.hash}"]`);
+    if (targetLink) {
+        document.querySelectorAll('.settings-nav a').forEach(l => l.classList.remove('active'));
+        targetLink.classList.add('active');
+        setTimeout(() => {
+            document.querySelector(window.location.hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    }
+}
 </script>
 
 <?php require_once 'includes/footer.php'; ?>

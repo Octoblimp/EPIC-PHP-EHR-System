@@ -6,6 +6,13 @@
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/api.php';
 
+// Check if patient protection is enabled
+$patient_protection_enabled = defined('PATIENT_PROTECTION_ENABLED') ? PATIENT_PROTECTION_ENABLED : false;
+if (file_exists(__DIR__ . '/includes/patient_protection.php')) {
+    require_once __DIR__ . '/includes/patient_protection.php';
+    $patient_protection_enabled = true;
+}
+
 // Fetch all patients
 $patientsData = $patientService->getAll();
 $patients = $patientsData['success'] ? $patientsData['data'] : [];
@@ -157,15 +164,19 @@ include 'includes/header.php';
                             <th style="width: 50px;">Open</th>
                             <th>Patient Name</th>
                             <th>MRN</th>
-                            <th>DOB</th>
+                            <?php if (!$patient_protection_enabled): ?><th>DOB</th><?php endif; ?>
                             <th>Age</th>
                             <th>Gender</th>
+                            <th>Status</th>
                             <th>Location</th>
                             <th>Attending</th>
                         </tr>
                     </thead>
                     <tbody id="patient-list">
-                        <?php foreach ($patients as $patient): ?>
+                        <?php foreach ($patients as $patient): 
+                            $status = $patient['status'] ?? 'active';
+                            $statusClass = $status === 'inpatient' ? 'badge-success' : ($status === 'outpatient' ? 'badge-info' : 'badge-secondary');
+                        ?>
                         <tr>
                             <td class="text-center">
                                 <a href="patient-chart.php?id=<?php echo $patient['id']; ?>" class="btn btn-primary" style="padding: 2px 8px; font-size: 10px;">
@@ -176,17 +187,18 @@ include 'includes/header.php';
                                 <strong><?php echo sanitize($patient['full_name']); ?></strong>
                             </td>
                             <td><?php echo sanitize($patient['mrn']); ?></td>
-                            <td><?php echo sanitize($patient['date_of_birth']); ?></td>
+                            <?php if (!$patient_protection_enabled): ?><td><?php echo sanitize($patient['date_of_birth']); ?></td><?php endif; ?>
                             <td><?php echo $patient['age']; ?></td>
                             <td><?php echo sanitize($patient['gender']); ?></td>
-                            <td>--</td>
+                            <td><span class="badge <?php echo $statusClass; ?>"><?php echo ucfirst($status); ?></span></td>
+                            <td><?php echo sanitize($patient['location'] ?? '--'); ?></td>
                             <td><?php echo sanitize($patient['primary_care_provider'] ?? 'N/A'); ?></td>
                         </tr>
                         <?php endforeach; ?>
                         
                         <?php if (empty($patients)): ?>
                         <tr>
-                            <td colspan="8" class="text-center text-muted" style="padding: 30px;">
+                            <td colspan="<?php echo $patient_protection_enabled ? 8 : 9; ?>" class="text-center text-muted" style="padding: 30px;">
                                 No patients found. Make sure the Python backend is running.
                             </td>
                         </tr>
@@ -225,6 +237,9 @@ include 'includes/header.php';
     </div>
 
     <script>
+        // Configuration
+        const PATIENT_PROTECTION_ENABLED = <?php echo json_encode($patient_protection_enabled); ?>;
+        
         // Store all patients for client-side filtering
         const allPatients = <?php echo json_encode($patients); ?>;
         
@@ -401,11 +416,12 @@ include 'includes/header.php';
         function updatePatientTable(patients) {
             const tbody = document.getElementById('patient-list');
             document.getElementById('patient-count').textContent = patients.length;
+            const colspan = PATIENT_PROTECTION_ENABLED ? 8 : 9;
             
             if (patients.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8" class="text-center text-muted" style="padding: 30px;">
+                        <td colspan="${colspan}" class="text-center text-muted" style="padding: 30px;">
                             No patients found matching your search.
                         </td>
                     </tr>
@@ -413,22 +429,29 @@ include 'includes/header.php';
                 return;
             }
 
-            tbody.innerHTML = patients.map(patient => `
-                <tr>
-                    <td class="text-center">
-                        <a href="patient-chart.php?id=${patient.id}" class="btn btn-primary" style="padding: 2px 8px; font-size: 10px;">
-                            Open
-                        </a>
-                    </td>
-                    <td><strong>${escapeHtml(patient.full_name || '')}</strong></td>
-                    <td>${escapeHtml(patient.mrn || '')}</td>
-                    <td>${escapeHtml(patient.date_of_birth || '')}</td>
-                    <td>${patient.age || ''}</td>
-                    <td>${escapeHtml(patient.gender || '')}</td>
-                    <td>--</td>
-                    <td>${escapeHtml(patient.primary_care_provider || 'N/A')}</td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = patients.map(patient => {
+                const status = patient.status || 'active';
+                const statusClass = status === 'inpatient' ? 'badge-success' : (status === 'outpatient' ? 'badge-info' : 'badge-secondary');
+                const dobCell = PATIENT_PROTECTION_ENABLED ? '' : `<td>${escapeHtml(patient.date_of_birth || '')}</td>`;
+                
+                return `
+                    <tr>
+                        <td class="text-center">
+                            <a href="patient-chart.php?id=${patient.id}" class="btn btn-primary" style="padding: 2px 8px; font-size: 10px;">
+                                Open
+                            </a>
+                        </td>
+                        <td><strong>${escapeHtml(patient.full_name || '')}</strong></td>
+                        <td>${escapeHtml(patient.mrn || '')}</td>
+                        ${dobCell}
+                        <td>${patient.age || ''}</td>
+                        <td>${escapeHtml(patient.gender || '')}</td>
+                        <td><span class="badge ${statusClass}">${status.charAt(0).toUpperCase() + status.slice(1)}</span></td>
+                        <td>${escapeHtml(patient.location || '--')}</td>
+                        <td>${escapeHtml(patient.primary_care_provider || 'N/A')}</td>
+                    </tr>
+                `;
+            }).join('');
         }
         
         function escapeHtml(text) {

@@ -296,6 +296,16 @@ function hasNavPermission($permission) {
         
         .nav-customize .nav-item {
             border-left: none;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .nav-customize a.nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px;
+            cursor: pointer;
         }
         
         .nav-more {
@@ -902,7 +912,17 @@ function hasNavPermission($permission) {
             
             <div class="header-search">
                 <i class="fas fa-search search-icon"></i>
-                <input type="text" placeholder="Search..." id="globalSearch" onkeypress="handleGlobalSearch(event)">
+                <input type="text" placeholder="Search..." id="globalSearch" 
+                       oninput="handleGlobalSearchInput(event)" 
+                       onkeypress="handleGlobalSearch(event)"
+                       onfocus="showSearchDropdown()"
+                       autocomplete="off">
+                <div class="header-search-dropdown" id="globalSearchDropdown">
+                    <div class="search-dropdown-loading" style="display:none;">
+                        <i class="fas fa-spinner fa-spin"></i> Searching...
+                    </div>
+                    <div class="search-dropdown-results"></div>
+                </div>
             </div>
             
             <div class="header-toolbar">
@@ -1001,9 +1021,15 @@ function hasNavPermission($permission) {
                 
                 <div class="nav-bottom">
                     <div class="nav-customize">
-                        <div class="nav-item" onclick="openCustomizeSidebarModal()" title="Customize">
+                        <a href="settings.php#sidebar" class="nav-item" title="Customize Sidebar">
                             <i class="fas fa-cog nav-icon"></i>
                             <span class="nav-label">Customize</span>
+                        </a>
+                    </div>
+                    <div class="nav-goto">
+                        <div class="nav-item" onclick="openGoToModal()" title="Go To (Ctrl+G)">
+                            <i class="fas fa-bolt nav-icon"></i>
+                            <span class="nav-label">Go To</span>
                         </div>
                     </div>
                     <div class="nav-more">
@@ -1243,15 +1269,323 @@ document.addEventListener('click', function(event) {
     }
 });
 
-// Global search
+// Global search - Enter key still works for full search page
 function handleGlobalSearch(event) {
     if (event.key === 'Enter') {
         const query = document.getElementById('globalSearch').value;
         if (query.trim()) {
+            hideSearchDropdown();
             window.location.href = 'search.php?q=' + encodeURIComponent(query);
         }
     }
 }
+
+// AJAX header search with dropdown
+let headerSearchTimeout = null;
+function handleGlobalSearchInput(event) {
+    clearTimeout(headerSearchTimeout);
+    const query = event.target.value.trim();
+    
+    if (query.length < 2) {
+        hideSearchDropdown();
+        return;
+    }
+    
+    headerSearchTimeout = setTimeout(() => {
+        performHeaderSearch(query);
+    }, 300);
+}
+
+function showSearchDropdown() {
+    const query = document.getElementById('globalSearch').value.trim();
+    if (query.length >= 2) {
+        document.getElementById('globalSearchDropdown').classList.add('show');
+    }
+}
+
+function hideSearchDropdown() {
+    document.getElementById('globalSearchDropdown').classList.remove('show');
+}
+
+function performHeaderSearch(query) {
+    const dropdown = document.getElementById('globalSearchDropdown');
+    const resultsDiv = dropdown.querySelector('.search-dropdown-results');
+    const loadingDiv = dropdown.querySelector('.search-dropdown-loading');
+    
+    dropdown.classList.add('show');
+    loadingDiv.style.display = 'block';
+    resultsDiv.innerHTML = '';
+    
+    // Search against demo data (would be API call in production)
+    setTimeout(() => {
+        loadingDiv.style.display = 'none';
+        const results = searchHeaderData(query);
+        displayHeaderResults(results, query);
+    }, 200);
+}
+
+function searchHeaderData(query) {
+    query = query.toLowerCase();
+    return {
+        patients: demoPatients.filter(p => 
+            p.name.toLowerCase().includes(query) || 
+            p.mrn.toLowerCase().includes(query)
+        ).slice(0, 3),
+        orders: [
+            { id: 101, name: 'CBC with Diff', patient: 'Smith, John', type: 'Lab' },
+            { id: 102, name: 'Basic Metabolic Panel', patient: 'Smith, John', type: 'Lab' },
+        ].filter(o => o.name.toLowerCase().includes(query) || o.patient.toLowerCase().includes(query)).slice(0, 2)
+    };
+}
+
+function displayHeaderResults(results, query) {
+    const resultsDiv = document.querySelector('.search-dropdown-results');
+    const total = results.patients.length + results.orders.length;
+    
+    if (total === 0) {
+        resultsDiv.innerHTML = '<div class="no-results">No results found for "' + escapeHtml(query) + '"</div>';
+        return;
+    }
+    
+    let html = '';
+    
+    if (results.patients.length > 0) {
+        html += '<div class="result-section"><div class="section-header">Patients</div>';
+        results.patients.forEach(p => {
+            html += `
+                <a href="patient-chart.php?id=${p.id}" class="search-result-item">
+                    <div class="result-icon patient"><i class="fas fa-user"></i></div>
+                    <div class="result-info">
+                        <div class="result-title">${highlightText(p.name, query)}</div>
+                        <div class="result-subtitle">MRN: ${highlightText(p.mrn, query)}</div>
+                    </div>
+                </a>
+            `;
+        });
+        html += '</div>';
+    }
+    
+    if (results.orders.length > 0) {
+        html += '<div class="result-section"><div class="section-header">Orders</div>';
+        results.orders.forEach(o => {
+            html += `
+                <div class="search-result-item">
+                    <div class="result-icon order"><i class="fas fa-file-medical"></i></div>
+                    <div class="result-info">
+                        <div class="result-title">${highlightText(o.name, query)}</div>
+                        <div class="result-subtitle">${o.type} - ${o.patient}</div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+    
+    html += `<a href="search.php?q=${encodeURIComponent(query)}" class="view-all">View all results →</a>`;
+    resultsDiv.innerHTML = html;
+}
+
+function highlightText(text, query) {
+    if (!query) return escapeHtml(text);
+    const regex = new RegExp('(' + escapeRegex(query) + ')', 'gi');
+    return escapeHtml(text).replace(regex, '<mark>$1</mark>');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Close search dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.header-search')) {
+        hideSearchDropdown();
+    }
+});
+
+// Shortcodes configuration - loaded from server (admin-configured) or defaults
+<?php
+// Get shortcodes from session (set by admin) or use defaults
+$system_shortcodes = $_SESSION['system_shortcodes'] ?? null;
+if ($system_shortcodes) {
+    // Convert array format to object format for JavaScript
+    $js_shortcodes = [];
+    foreach ($system_shortcodes as $sc) {
+        $js_shortcodes[$sc['code']] = [
+            'tab' => $sc['tab'],
+            'label' => $sc['name'],
+            'icon' => $sc['icon'],
+            'category' => $sc['category'] ?? ''
+        ];
+    }
+    echo "const serverShortcodes = " . json_encode($js_shortcodes) . ";\n";
+    echo "const defaultShortcodes = serverShortcodes;\n";
+} else {
+?>
+const defaultShortcodes = {
+    'sum': { tab: 'summary', label: 'Summary', icon: 'fa-clipboard' },
+    'cr': { tab: 'chart-review', label: 'Chart Review', icon: 'fa-file-medical' },
+    'res': { tab: 'results', label: 'Results', icon: 'fa-flask' },
+    'lab': { tab: 'results', label: 'Lab Results', icon: 'fa-vials' },
+    'wl': { tab: 'work-list', label: 'Work List', icon: 'fa-tasks' },
+    'mar': { tab: 'mar', label: 'MAR', icon: 'fa-pills' },
+    'med': { tab: 'mar', label: 'Medications', icon: 'fa-prescription-bottle' },
+    'fs': { tab: 'flowsheets', label: 'Flowsheets', icon: 'fa-chart-line' },
+    'vs': { tab: 'flowsheets', label: 'Vitals', icon: 'fa-heartbeat' },
+    'io': { tab: 'intake-output', label: 'Intake/Output', icon: 'fa-balance-scale' },
+    'not': { tab: 'notes', label: 'Notes', icon: 'fa-sticky-note' },
+    'pn': { tab: 'notes', label: 'Progress Notes', icon: 'fa-file-alt' },
+    'edu': { tab: 'education', label: 'Education', icon: 'fa-graduation-cap' },
+    'cp': { tab: 'care-plan', label: 'Care Plan', icon: 'fa-clipboard-list' },
+    'ord': { tab: 'orders', label: 'Orders', icon: 'fa-prescription' },
+    'rx': { tab: 'orders', label: 'Prescriptions', icon: 'fa-capsules' },
+    'demo': { tab: 'demographics', label: 'Demographics', icon: 'fa-id-card' },
+    'hx': { tab: 'history', label: 'History', icon: 'fa-history' },
+    'all': { tab: 'summary', label: 'Allergies', icon: 'fa-exclamation-triangle' },
+    'prob': { tab: 'chart-review', label: 'Problem List', icon: 'fa-list-ul' },
+    'imm': { tab: 'chart-review', label: 'Immunizations', icon: 'fa-syringe' },
+    'img': { tab: 'results', label: 'Imaging', icon: 'fa-x-ray' },
+    'dx': { tab: 'chart-review', label: 'Diagnoses', icon: 'fa-diagnoses' },
+};
+<?php } ?>
+
+let pageShortcodes = JSON.parse(localStorage.getItem('pageShortcodes')) || defaultShortcodes;
+let gotoSelectedIndex = 0;
+let gotoFilteredItems = [];
+
+// Go To Modal
+function openGoToModal() {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('gotoModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'gotoModal';
+        modal.className = 'goto-modal';
+        modal.innerHTML = `
+            <div class="goto-box">
+                <div class="goto-header">
+                    <i class="fas fa-bolt"></i>
+                    <h3>Go To Page</h3>
+                    <button class="goto-close" onclick="closeGoToModal()">&times;</button>
+                </div>
+                <div class="goto-search">
+                    <input type="text" id="gotoInput" placeholder="Type shortcode or page name..." 
+                           oninput="filterGoToItems(this.value)" autocomplete="off">
+                </div>
+                <div class="goto-results" id="gotoResults"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Add keyboard navigation
+        modal.querySelector('#gotoInput').addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                gotoSelectedIndex = Math.min(gotoSelectedIndex + 1, gotoFilteredItems.length - 1);
+                renderGoToResults();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                gotoSelectedIndex = Math.max(gotoSelectedIndex - 1, 0);
+                renderGoToResults();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                selectGoToItem(gotoSelectedIndex);
+            } else if (e.key === 'Escape') {
+                closeGoToModal();
+            }
+        });
+    }
+    
+    modal.classList.add('show');
+    document.getElementById('gotoInput').value = '';
+    document.getElementById('gotoInput').focus();
+    gotoSelectedIndex = 0;
+    filterGoToItems('');
+}
+
+function closeGoToModal() {
+    document.getElementById('gotoModal')?.classList.remove('show');
+}
+
+function filterGoToItems(query) {
+    query = query.toLowerCase().trim();
+    
+    gotoFilteredItems = [];
+    
+    for (const [shortcode, item] of Object.entries(pageShortcodes)) {
+        if (!query || 
+            shortcode.toLowerCase().includes(query) || 
+            item.label.toLowerCase().includes(query) ||
+            item.tab.toLowerCase().includes(query)) {
+            gotoFilteredItems.push({ shortcode, ...item });
+        }
+    }
+    
+    gotoSelectedIndex = 0;
+    renderGoToResults();
+}
+
+function renderGoToResults() {
+    const results = document.getElementById('gotoResults');
+    
+    if (gotoFilteredItems.length === 0) {
+        results.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">No matching pages</div>';
+        return;
+    }
+    
+    let html = '<div class="goto-section">Patient Chart Pages</div>';
+    
+    gotoFilteredItems.forEach((item, idx) => {
+        const selected = idx === gotoSelectedIndex ? 'selected' : '';
+        html += `
+            <div class="goto-item ${selected}" onclick="selectGoToItem(${idx})" data-index="${idx}">
+                <div class="goto-icon"><i class="fas ${item.icon}"></i></div>
+                <div class="goto-info">
+                    <div class="goto-name">${item.label}</div>
+                    <div class="goto-shortcode">Shortcode: ${item.shortcode}</div>
+                </div>
+                <div class="goto-kbd">${item.shortcode}</div>
+            </div>
+        `;
+    });
+    
+    results.innerHTML = html;
+    
+    // Scroll selected into view
+    const selectedEl = results.querySelector('.goto-item.selected');
+    if (selectedEl) selectedEl.scrollIntoView({ block: 'nearest' });
+}
+
+function selectGoToItem(index) {
+    const item = gotoFilteredItems[index];
+    if (!item) return;
+    
+    closeGoToModal();
+    
+    // Navigate to the tab
+    const urlParams = new URLSearchParams(window.location.search);
+    const patientId = urlParams.get('id');
+    
+    if (patientId) {
+        window.location.href = 'patient-chart.php?id=' + patientId + '&tab=' + item.tab;
+    } else {
+        // Not on patient chart, try to go to patient chart with last patient or show error
+        alert('Please open a patient chart first');
+    }
+}
+
+// Ctrl+G shortcut to open Go To
+document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+        e.preventDefault();
+        openGoToModal();
+    }
+});
 
 // Patient Search Modal
 function showPatientSearch() {
