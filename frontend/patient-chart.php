@@ -149,13 +149,6 @@ $sticky_notes = [
         'created_at' => date('m/d/Y H:i', strtotime('-1 day'))
     ]
 ];
-    'flowsheets' => ['label' => 'Flowsheets', 'icon' => 'fa-chart-line'],
-    'intake-output' => ['label' => 'Intake/O', 'icon' => 'fa-balance-scale'],
-    'notes' => ['label' => 'Notes', 'icon' => 'fa-sticky-note'],
-    'education' => ['label' => 'Education', 'icon' => 'fa-graduation-cap'],
-    'care-plan' => ['label' => 'Care Plan', 'icon' => 'fa-clipboard-list'],
-    'orders' => ['label' => 'Orders', 'icon' => 'fa-prescription'],
-];
 
 // Set page title
 $page_title = $patient_name . ' - ' . APP_NAME;

@@ -4,8 +4,8 @@
  * HIPAA-compliant audit logging for all system activities
  */
 
-// Audit log file path
-define('AUDIT_LOG_PATH', __DIR__ . '/../../logs/audit.log');
+// Audit log file path - use logs directory within public_html to comply with open_basedir
+define('AUDIT_LOG_PATH', __DIR__ . '/../logs/audit.log');
 define('AUDIT_DB_ENABLED', true);
 
 /**
