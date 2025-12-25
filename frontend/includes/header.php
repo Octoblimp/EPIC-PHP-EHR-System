@@ -1747,17 +1747,26 @@ function searchPatients(query) {
 
 // Add patient to tabs and navigate
 function addPatientTab(patientId, patientName) {
-    // Store in session via AJAX, then navigate
-    fetch('api/add-patient-tab.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: patientId, name: patientName })
-    }).then(() => {
-        window.location.href = 'patient-chart.php?id=' + patientId;
-    }).catch(() => {
-        // If API fails, just navigate
-        window.location.href = 'patient-chart.php?id=' + patientId;
-    });
+    // Use form POST to handler in includes/ to avoid nginx proxy issues
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'includes/add-patient-tab-handler.php';
+    form.style.display = 'none';
+    
+    const idInput = document.createElement('input');
+    idInput.type = 'hidden';
+    idInput.name = 'patient_id';
+    idInput.value = patientId;
+    form.appendChild(idInput);
+    
+    const nameInput = document.createElement('input');
+    nameInput.type = 'hidden';
+    nameInput.name = 'patient_name';
+    nameInput.value = patientName;
+    form.appendChild(nameInput);
+    
+    document.body.appendChild(form);
+    form.submit();
 }
 
 // Open patient chart
