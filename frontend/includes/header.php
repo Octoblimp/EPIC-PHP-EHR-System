@@ -167,7 +167,7 @@ function hasNavPermission($permission) {
             flex-shrink: 0;
             border-right: 1px solid #0a2a35;
             z-index: 100;
-            transition: width 0.2s ease, min-width 0.2s ease;
+            transition: width 0.15s ease, min-width 0.15s ease;
             overflow: visible;
         }
         
@@ -197,7 +197,7 @@ function hasNavPermission($permission) {
             color: rgba(255,255,255,0.7);
             font-size: 8px;
             z-index: 101;
-            transition: left 0.2s ease, background 0.15s;
+            transition: left 0.15s ease, background 0.15s;
         }
         
         .sidebar-toggle:hover {
@@ -210,7 +210,7 @@ function hasNavPermission($permission) {
         }
         
         .sidebar-toggle i {
-            transition: transform 0.2s;
+            transition: transform 0.15s;
         }
         
         .sidebar-toggle.collapsed i {
@@ -398,11 +398,12 @@ function hasNavPermission($permission) {
         
         .main-content {
             flex: 1;
-            overflow: auto;
+            overflow: hidden;
             padding: 0;
             display: flex;
             flex-direction: column;
             min-height: 0;
+            min-width: 0;
         }
         
         /* Ensure app-body takes full height */

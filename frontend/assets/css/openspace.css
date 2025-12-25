@@ -342,55 +342,57 @@ a:hover {
 .patient-banner {
     background: var(--patient-banner-bg);
     border-bottom: 2px solid var(--patient-banner-border);
-    padding: 6px 10px;
+    padding: 5px 10px;
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 12px;
     flex-shrink: 0;
 }
 
 .patient-photo {
-    width: 50px;
-    height: 50px;
+    width: 42px;
+    height: 42px;
     background: #c0d0e0;
     border: 1px solid #8090a0;
     border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: 20px;
     color: #607080;
+    flex-shrink: 0;
 }
 
 .patient-info-main {
     flex: 1;
+    min-width: 0;
 }
 
 .patient-name-row {
     display: flex;
     align-items: baseline;
-    gap: 12px;
+    gap: 10px;
 }
 
 .patient-name {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: bold;
     color: var(--text-primary);
 }
 
 .patient-age-sex {
-    font-size: var(--font-size-base);
+    font-size: var(--font-size-sm);
     color: var(--text-secondary);
 }
 
 .patient-ids {
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-xs);
     color: var(--text-secondary);
-    margin-top: 2px;
+    margin-top: 1px;
 }
 
 .patient-ids span {
-    margin-right: 15px;
+    margin-right: 12px;
 }
 
 .patient-ids label {
@@ -399,14 +401,16 @@ a:hover {
 
 .patient-alerts {
     display: flex;
-    gap: 8px;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
 .alert-badge {
-    padding: 2px 8px;
+    padding: 2px 6px;
     border-radius: 3px;
-    font-size: var(--font-size-xs);
+    font-size: 9px;
     font-weight: 600;
+    white-space: nowrap;
 }
 
 .alert-badge.allergy {
@@ -430,21 +434,24 @@ a:hover {
 /* Patient additional info boxes */
 .patient-info-boxes {
     display: flex;
-    gap: 10px;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .patient-info-box {
     background: var(--patient-info-bg);
     border: 1px solid #c0d0e0;
-    padding: 4px 10px;
+    padding: 3px 8px;
     border-radius: 3px;
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-xs);
+    min-width: 60px;
+    text-align: center;
 }
 
 .patient-info-box label {
     color: var(--text-muted);
     display: block;
-    font-size: var(--font-size-xs);
+    font-size: 9px;
 }
 
 .patient-info-box .value {
@@ -521,24 +528,26 @@ a:hover {
 .chart-subnav {
     background: #ffffff;
     border-bottom: 1px solid #d0d8e0;
-    padding: 4px 8px;
+    padding: 3px 8px;
     display: flex;
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
+    min-height: 28px;
 }
 
 .subnav-tabs {
     display: flex;
-    gap: 4px;
+    gap: 3px;
 }
 
 .subnav-tab {
-    padding: 4px 12px;
-    font-size: var(--font-size-sm);
+    padding: 3px 10px;
+    font-size: var(--font-size-xs);
     color: var(--text-link);
     cursor: pointer;
     border-radius: 3px;
+    white-space: nowrap;
 }
 
 .subnav-tab:hover {
@@ -554,7 +563,7 @@ a:hover {
 .subnav-actions {
     margin-left: auto;
     display: flex;
-    gap: 6px;
+    gap: 5px;
     align-items: center;
 }
 
@@ -566,10 +575,10 @@ a:hover {
 
 .subnav-search input {
     border: 1px solid #c0c8d0;
-    padding: 3px 8px;
-    font-size: var(--font-size-sm);
+    padding: 2px 6px;
+    font-size: var(--font-size-xs);
     border-radius: 3px;
-    width: 150px;
+    width: 120px;
 }
 
 /* ==================================================
@@ -577,9 +586,10 @@ a:hover {
    ================================================== */
 .chart-content {
     flex: 1;
-    overflow: auto;
+    overflow: hidden;
     display: flex;
     min-height: 0;
+    min-width: 0;
 }
 
 /* Left Sidebar */
@@ -646,8 +656,10 @@ a:hover {
 .chart-main {
     flex: 1;
     overflow-y: auto;
-    padding: 10px;
+    overflow-x: hidden;
+    padding: 8px;
     background: #d8e0e8;
+    min-width: 0;
 }
 
 /* ==================================================
@@ -656,18 +668,20 @@ a:hover {
 .content-panel {
     background: var(--content-bg);
     border: 1px solid var(--content-border);
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     border-radius: 3px;
+    overflow: hidden;
 }
 
 .panel-header {
-    padding: 6px 10px;
-    font-size: var(--font-size-base);
+    padding: 5px 8px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     display: flex;
     align-items: center;
     justify-content: space-between;
     color: white;
+    white-space: nowrap;
 }
 
 .panel-header.orange {
@@ -701,8 +715,8 @@ a:hover {
 
 .panel-header-actions {
     display: flex;
-    gap: 8px;
-    font-size: var(--font-size-sm);
+    gap: 6px;
+    font-size: var(--font-size-xs);
     font-weight: normal;
 }
 
@@ -716,11 +730,12 @@ a:hover {
 }
 
 .panel-content {
-    padding: 10px;
+    padding: 8px;
+    overflow-x: auto;
 }
 
 .panel-content.compact {
-    padding: 6px 10px;
+    padding: 4px 8px;
 }
 
 .panel-empty {
@@ -732,12 +747,24 @@ a:hover {
 /* Two-column layout */
 .content-columns {
     display: flex;
-    gap: 10px;
+    gap: 8px;
+    width: 100%;
 }
 
 .content-column {
     flex: 1;
     min-width: 0;
+    max-width: 50%;
+}
+
+/* Responsive: stack columns on smaller screens */
+@media (max-width: 1200px) {
+    .content-columns {
+        flex-direction: column;
+    }
+    .content-column {
+        max-width: 100%;
+    }
 }
 
 /* ==================================================
@@ -754,15 +781,15 @@ a:hover {
 }
 
 .sticky-note-content {
-    font-size: var(--font-size-sm);
-    line-height: 1.5;
+    font-size: var(--font-size-xs);
+    line-height: 1.4;
 }
 
 .sticky-note-footer {
-    font-size: var(--font-size-xs);
+    font-size: 9px;
     color: var(--text-muted);
-    margin-top: 8px;
-    padding-top: 6px;
+    margin-top: 6px;
+    padding-top: 4px;
     border-top: 1px solid #d4c060;
 }
 
@@ -772,21 +799,28 @@ a:hover {
 .data-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-xs);
+    table-layout: fixed;
 }
 
 .data-table th {
     background: #e8eef2;
-    padding: 6px 8px;
+    padding: 4px 6px;
     text-align: left;
     font-weight: 600;
     border-bottom: 1px solid #c0c8d0;
     color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .data-table td {
-    padding: 5px 8px;
+    padding: 3px 6px;
     border-bottom: 1px solid #e8e8e8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .data-table tr:hover {
@@ -827,13 +861,19 @@ a:hover {
 .btn {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 12px;
-    font-size: var(--font-size-sm);
+    gap: 3px;
+    padding: 3px 8px;
+    font-size: var(--font-size-xs);
     border-radius: 3px;
     border: 1px solid;
     cursor: pointer;
     font-family: inherit;
+    white-space: nowrap;
+}
+
+.btn-sm {
+    padding: 2px 6px;
+    font-size: 10px;
 }
 
 .btn-primary {
@@ -933,9 +973,10 @@ a:hover {
    ================================================== */
 .infusion-item {
     display: flex;
-    gap: 20px;
-    padding: 8px 0;
+    gap: 10px;
+    padding: 5px 0;
     border-bottom: 1px solid #e0e0e0;
+    flex-wrap: wrap;
 }
 
 .infusion-item:last-child {
@@ -944,22 +985,24 @@ a:hover {
 
 .infusion-section {
     flex: 1;
+    min-width: 80px;
 }
 
 .infusion-section h4 {
-    font-size: var(--font-size-xs);
+    font-size: 9px;
     color: var(--text-muted);
     font-weight: normal;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .infusion-med {
     font-weight: 600;
     color: var(--text-primary);
+    font-size: var(--font-size-xs);
 }
 
 .infusion-rate {
-    font-size: var(--font-size-sm);
+    font-size: 9px;
     color: var(--text-secondary);
 }
 
