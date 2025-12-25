@@ -1322,82 +1322,345 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// Print Chart Function
+// Print Chart Function - Professional Medical PDF Template
 function printChart() {
     // Get patient info for print header
     const patientName = <?php echo json_encode($patient_name); ?>;
+    const patientAgeSex = <?php echo json_encode($patient_age_sex); ?>;
     const mrn = <?php echo json_encode($mrn); ?>;
+    const dob = <?php echo json_encode(date('m/d/Y', strtotime($patient['date_of_birth'] ?? '1955-01-01'))); ?>;
     const currentTab = <?php echo json_encode($current_tab); ?>;
+    const allergies = <?php echo json_encode($patient['allergies'] ?? []); ?>;
+    const room = <?php echo json_encode($patient['room'] ?? ''); ?>;
+    const attendingPhysician = <?php echo json_encode($patient['attending_physician'] ?? ''); ?>;
+    const appName = <?php echo json_encode(APP_NAME); ?>;
     
-    // Create print-friendly version
-    const printWindow = window.open('', '_blank');
+    // Get current content
     const content = document.querySelector('.chart-main').innerHTML;
-    const banner = document.querySelector('.patient-banner').outerHTML;
+    
+    // Format current date
+    const now = new Date();
+    const printDate = now.toLocaleString('en-US', { 
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+    });
+    
+    // Create print-friendly version with beautiful template
+    const printWindow = window.open('', '_blank');
     
     printWindow.document.write(`
         <!DOCTYPE html>
         <html>
         <head>
-            <title>${patientName} - ${currentTab.charAt(0).toUpperCase() + currentTab.slice(1)} - Print</title>
-            <link rel="stylesheet" href="assets/css/openspace.css">
+            <title>${patientName} - Chart Print</title>
             <style>
+                @page {
+                    size: letter;
+                    margin: 0.5in;
+                }
+                
+                * {
+                    box-sizing: border-box;
+                }
+                
                 body { 
-                    padding: 20px; 
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    font-size: 11pt;
+                    line-height: 1.4;
+                    color: #333;
                     background: white;
-                    font-family: Arial, sans-serif;
-                }
-                .print-header {
-                    border-bottom: 2px solid #1a4a5e;
-                    padding-bottom: 10px;
-                    margin-bottom: 20px;
-                }
-                .print-header h1 {
-                    font-size: 18px;
                     margin: 0;
+                    padding: 0;
+                }
+                
+                /* Professional Header */
+                .print-header {
+                    background: linear-gradient(135deg, #1a4a5e 0%, #2d7a9c 100%);
+                    color: white;
+                    padding: 20px 25px;
+                    margin-bottom: 0;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                
+                .header-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                }
+                
+                .header-logo {
+                    width: 50px;
+                    height: 50px;
+                    background: white;
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
                     color: #1a4a5e;
                 }
-                .print-header .print-meta {
-                    font-size: 12px;
-                    color: #666;
-                    margin-top: 5px;
+                
+                .header-title h1 {
+                    font-size: 20pt;
+                    margin: 0;
+                    font-weight: 600;
                 }
+                
+                .header-title p {
+                    margin: 3px 0 0;
+                    font-size: 10pt;
+                    opacity: 0.9;
+                }
+                
+                .header-right {
+                    text-align: right;
+                    font-size: 9pt;
+                }
+                
+                .header-right p {
+                    margin: 2px 0;
+                }
+                
+                /* Patient Banner */
                 .patient-banner {
-                    display: flex;
-                    gap: 15px;
-                    padding: 15px;
                     background: #f8f9fa;
+                    border: 2px solid #1a4a5e;
+                    border-top: none;
+                    padding: 15px 25px;
+                    display: grid;
+                    grid-template-columns: 1fr 1fr 1fr;
+                    gap: 20px;
+                }
+                
+                .banner-section h3 {
+                    font-size: 9pt;
+                    color: #666;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    margin: 0 0 8px;
+                    border-bottom: 1px solid #ddd;
+                    padding-bottom: 5px;
+                }
+                
+                .banner-field {
+                    margin-bottom: 6px;
+                }
+                
+                .banner-field label {
+                    display: inline-block;
+                    width: 80px;
+                    font-size: 9pt;
+                    color: #666;
+                }
+                
+                .banner-field span {
+                    font-weight: 600;
+                    color: #333;
+                }
+                
+                .patient-name-large {
+                    font-size: 16pt;
+                    font-weight: 700;
+                    color: #1a4a5e;
+                    margin-bottom: 5px;
+                }
+                
+                /* Allergy Alert Box */
+                .allergy-box {
+                    background: #fff3cd;
+                    border: 2px solid #ffc107;
+                    border-radius: 6px;
+                    padding: 10px 15px;
+                    margin-top: 10px;
+                }
+                
+                .allergy-box-title {
+                    font-size: 9pt;
+                    font-weight: 700;
+                    color: #856404;
+                    text-transform: uppercase;
+                    margin-bottom: 5px;
+                }
+                
+                .allergy-list {
+                    font-size: 10pt;
+                    color: #856404;
+                    font-weight: 600;
+                }
+                
+                /* Section Divider */
+                .section-divider {
+                    background: #1a4a5e;
+                    color: white;
+                    padding: 8px 25px;
+                    font-size: 12pt;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    margin-top: 0;
+                }
+                
+                /* Content Area */
+                .chart-content {
+                    padding: 20px 25px;
+                }
+                
+                /* Clean up inherited styles from main app */
+                .chart-content .card,
+                .chart-content .summary-card,
+                .chart-content .overview-card,
+                .chart-content .insurance-content .overview-card {
+                    background: white;
                     border: 1px solid #ddd;
-                    margin-bottom: 20px;
+                    border-radius: 6px;
+                    margin-bottom: 15px;
+                    page-break-inside: avoid;
                 }
-                .patient-photo { display: none; }
-                .patient-info-main { flex: 1; }
-                .patient-name { font-weight: bold; font-size: 16px; }
-                .patient-ids span { margin-right: 15px; font-size: 12px; }
-                .patient-ids label { font-weight: bold; }
-                .alert-badge { 
-                    display: inline-block; 
-                    padding: 2px 8px; 
-                    border-radius: 3px; 
-                    font-size: 11px;
-                    margin-right: 5px;
+                
+                .chart-content table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 10px 0;
                 }
-                .alert-badge.allergy { background: #ffebee; color: #c62828; }
-                .patient-info-boxes { display: none; }
+                
+                .chart-content th,
+                .chart-content td {
+                    padding: 8px 12px;
+                    border: 1px solid #ddd;
+                    text-align: left;
+                    font-size: 10pt;
+                }
+                
+                .chart-content th {
+                    background: #f5f5f5;
+                    font-weight: 600;
+                }
+                
+                /* Footer */
+                .print-footer {
+                    position: fixed;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    background: #f8f9fa;
+                    border-top: 2px solid #1a4a5e;
+                    padding: 10px 25px;
+                    font-size: 8pt;
+                    color: #666;
+                    display: flex;
+                    justify-content: space-between;
+                }
+                
+                .confidential-notice {
+                    color: #c62828;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                }
+                
+                /* Hide interactive elements */
+                button, .btn, input, select, textarea,
+                .subnav-actions, .card-actions, .btn-icon,
+                .verify-option, .add-coverage,
+                [onclick], a:not(.static-link) {
+                    display: none !important;
+                }
+                
+                /* Print-specific styles */
                 @media print {
-                    body { padding: 0; }
+                    body {
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    
+                    .print-header {
+                        background: #1a4a5e !important;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    
+                    .section-divider {
+                        background: #1a4a5e !important;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    
+                    .allergy-box {
+                        background: #fff3cd !important;
+                        border-color: #ffc107 !important;
+                    }
                 }
             </style>
         </head>
         <body>
+            <!-- Professional Header -->
             <div class="print-header">
-                <h1><?php echo htmlspecialchars(APP_NAME); ?> - Patient Chart</h1>
-                <div class="print-meta">
-                    Printed: ${new Date().toLocaleString()} | Tab: ${currentTab.charAt(0).toUpperCase() + currentTab.slice(1)}
+                <div class="header-left">
+                    <div class="header-logo">⚕</div>
+                    <div class="header-title">
+                        <h1>${appName}</h1>
+                        <p>Electronic Health Record</p>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <p><strong>Print Date:</strong> ${printDate}</p>
+                    <p><strong>Generated By:</strong> <?php echo htmlspecialchars($_SESSION['user']['display_name'] ?? $_SESSION['user']['username'] ?? 'System'); ?></p>
                 </div>
             </div>
-            ${banner}
+            
+            <!-- Patient Banner -->
+            <div class="patient-banner">
+                <div class="banner-section">
+                    <h3>Patient Information</h3>
+                    <div class="patient-name-large">${patientName}</div>
+                    <div class="banner-field">
+                        <label>DOB:</label>
+                        <span>${dob}</span>
+                    </div>
+                    <div class="banner-field">
+                        <label>Age/Sex:</label>
+                        <span>${patientAgeSex}</span>
+                    </div>
+                </div>
+                <div class="banner-section">
+                    <h3>Identifiers</h3>
+                    <div class="banner-field">
+                        <label>MRN:</label>
+                        <span>${mrn}</span>
+                    </div>
+                    ${room ? `<div class="banner-field"><label>Room:</label><span>${room}</span></div>` : ''}
+                    ${attendingPhysician ? `<div class="banner-field"><label>Attending:</label><span>${attendingPhysician}</span></div>` : ''}
+                </div>
+                <div class="banner-section">
+                    <h3>Allergies</h3>
+                    ${allergies.length > 0 ? `
+                        <div class="allergy-box">
+                            <div class="allergy-box-title">⚠ Known Allergies</div>
+                            <div class="allergy-list">${allergies.join(', ')}</div>
+                        </div>
+                    ` : '<p style="color:#666;font-style:italic;">No Known Drug Allergies (NKDA)</p>'}
+                </div>
+            </div>
+            
+            <!-- Section Title -->
+            <div class="section-divider">
+                ${currentTab.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+            </div>
+            
+            <!-- Chart Content -->
             <div class="chart-content">
                 ${content}
+            </div>
+            
+            <!-- Footer -->
+            <div class="print-footer">
+                <div class="confidential-notice">
+                    ⚠ Confidential Medical Information - HIPAA Protected
+                </div>
+                <div>
+                    Patient: ${patientName} | MRN: ${mrn} | Page 1
+                </div>
             </div>
         </body>
         </html>
@@ -1405,16 +1668,34 @@ function printChart() {
     
     printWindow.document.close();
     
-    // Wait for content to load then print
-    printWindow.onload = function() {
+    // Wait for styles to load then print
+    setTimeout(() => {
         printWindow.focus();
         printWindow.print();
-    };
+    }, 500);
 }
 
-// Refresh Chart Function
+// Refresh Chart Function - Smart refresh that maintains state
 function refreshChart() {
-    location.reload();
+    // Show loading indicator
+    const main = document.querySelector('.chart-main');
+    if (main) {
+        const originalContent = main.innerHTML;
+        main.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;height:200px;flex-direction:column;gap:15px;">
+                <div style="width:50px;height:50px;border:4px solid #e0e0e0;border-top-color:#1a4a5e;border-radius:50%;animation:spin 1s linear infinite;"></div>
+                <p style="color:#666;font-size:13px;">Refreshing chart data...</p>
+            </div>
+            <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+        `;
+        
+        // Simulate refresh delay then reload
+        setTimeout(() => {
+            location.reload();
+        }, 500);
+    } else {
+        location.reload();
+    }
 }
 </script>
 

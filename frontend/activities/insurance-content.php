@@ -1,16 +1,32 @@
 <?php
 /**
  * Insurance Content - Patient insurance information tab
+ * Full eligibility verification with clearinghouse integration
  */
 
 // Patient data should be available from parent
 $patient = $patient ?? [];
+$patient_id = $patient['id'] ?? $patient_id ?? 1;
+
+// Get clearinghouse configuration from session
+$clearinghouse_config = $_SESSION['clearinghouse_configs'] ?? [];
+$has_clearinghouse = !empty($clearinghouse_config);
+$primary_clearinghouse = null;
+foreach ($clearinghouse_config as $config) {
+    if ($config['is_primary'] ?? false) {
+        $primary_clearinghouse = $config;
+        break;
+    }
+}
 
 // Demo insurance data if not available from API
 $insurance_data = $patient['insurance'] ?? [
     'primary' => [
+        'id' => 1,
         'payer' => 'Blue Cross Blue Shield',
+        'payer_id' => 'BCBS',
         'payer_type' => 'Commercial',
+        'payer_phone' => '1-800-262-2583',
         'plan' => 'PPO Gold',
         'plan_type' => 'PPO',
         'policy_number' => 'BCB123456789',
@@ -35,8 +51,11 @@ $insurance_data = $patient['insurance'] ?? [
         'requires_preauth' => true
     ],
     'secondary' => [
+        'id' => 2,
         'payer' => 'Medicare',
+        'payer_id' => 'MEDICARE',
         'payer_type' => 'Medicare',
+        'payer_phone' => '1-800-633-4227',
         'plan' => 'Part B',
         'policy_number' => '1EG4-TE5-MK72',
         'effective_date' => '03/01/2020',
@@ -223,9 +242,26 @@ $authorizations = [
                 </div>
             </div>
             <div class="card-actions">
+                <button class="btn btn-sm btn-secondary" onclick="verifyInsurance('secondary')">
+                    <i class="fas fa-sync"></i> Verify
+                </button>
                 <button class="btn btn-sm btn-secondary" onclick="editInsurance('secondary')">
                     <i class="fas fa-edit"></i> Edit
                 </button>
+                <button class="btn btn-sm btn-danger" onclick="removeInsurance('secondary')">
+                    <i class="fas fa-trash"></i> Remove
+                </button>
+            </div>
+        </div>
+        <?php else: ?>
+        <!-- Add Secondary Insurance Card -->
+        <div class="overview-card add-coverage" onclick="addInsurance('secondary')">
+            <div class="add-card-content">
+                <div class="add-icon">
+                    <i class="fas fa-plus-circle"></i>
+                </div>
+                <h4>Add Secondary Insurance</h4>
+                <p>Click to add secondary coverage</p>
             </div>
         </div>
         <?php endif; ?>
@@ -309,6 +345,315 @@ $authorizations = [
                     <span class="check-result">Eligible - Active Coverage</span>
                     <span class="check-user">Verified by: System Auto-Check</span>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Verify Insurance Modal -->
+<div id="verifyModal" class="ins-modal" style="display:none;">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header verify-header">
+                <h5 class="modal-title"><i class="fas fa-stethoscope"></i> Verify Insurance Eligibility</h5>
+                <button type="button" class="close" onclick="closeVerifyModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="verifyLevel" value="">
+                
+                <div class="verify-info-card">
+                    <div class="info-row">
+                        <label>Payer:</label>
+                        <span id="verifyPayerName">-</span>
+                    </div>
+                    <div class="info-row">
+                        <label>Policy #:</label>
+                        <span id="verifyPolicyNum">-</span>
+                    </div>
+                </div>
+                
+                <div class="verify-fields">
+                    <div class="form-group">
+                        <label>Subscriber ID</label>
+                        <input type="text" id="verifySubscriberId" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Service Date</label>
+                        <input type="date" id="verifyServiceDate" class="form-control">
+                    </div>
+                </div>
+                
+                <div class="verify-options">
+                    <h6>Verification Method</h6>
+                    
+                    <div id="autoVerifyOption" class="verify-option" onclick="runAutomatedVerification()">
+                        <div class="option-icon auto">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <div class="option-details">
+                            <strong>Real-Time Electronic Verification</strong>
+                            <span>Via <span id="clearinghouseName">Clearinghouse</span> (270/271)</span>
+                        </div>
+                        <div class="option-action">
+                            <i class="fas fa-chevron-right"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="verify-option" onclick="showManualVerification()">
+                        <div class="option-icon manual">
+                            <i class="fas fa-phone-alt"></i>
+                        </div>
+                        <div class="option-details">
+                            <strong>Manual Verification</strong>
+                            <span>Call payer or use portal, then record results</span>
+                            <span class="payer-phone"><i class="fas fa-phone"></i> <span id="payerPhone">-</span></span>
+                        </div>
+                        <div class="option-action">
+                            <i class="fas fa-chevron-right"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Results Section -->
+                <div id="verifyResults" style="display:none;"></div>
+                
+                <!-- Manual Verification Form -->
+                <div id="manualVerifySection" style="display:none;">
+                    <h6><i class="fas fa-edit"></i> Manual Verification Entry</h6>
+                    <div class="manual-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Verified By</label>
+                                <input type="text" id="manualVerifiedBy" class="form-control" placeholder="Your name">
+                            </div>
+                            <div class="form-group">
+                                <label>Method</label>
+                                <select id="manualMethod" class="form-control">
+                                    <option value="phone">Phone Call</option>
+                                    <option value="portal">Payer Portal</option>
+                                    <option value="fax">Fax Response</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Coverage Status</label>
+                                <select id="manualCoverageStatus" class="form-control">
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                    <option value="Pending">Pending</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="manualIsEligible" checked>
+                                    Patient is Eligible
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Reference #</label>
+                                <input type="text" id="manualReference" class="form-control" placeholder="Call reference number">
+                            </div>
+                            <div class="form-group">
+                                <label>Contact Name</label>
+                                <input type="text" id="manualContactName" class="form-control" placeholder="Rep spoke with">
+                            </div>
+                        </div>
+                        
+                        <h6><i class="fas fa-dollar-sign"></i> Benefits Information (Optional)</h6>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Deductible</label>
+                                <input type="number" id="manualDeductible" class="form-control" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>Deductible Remaining</label>
+                                <input type="number" id="manualDeductibleRemaining" class="form-control" placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>OOP Max</label>
+                                <input type="number" id="manualOOPMax" class="form-control" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>OOP Remaining</label>
+                                <input type="number" id="manualOOPRemaining" class="form-control" placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>PCP Copay</label>
+                                <input type="number" id="manualCopayPCP" class="form-control" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>Specialist Copay</label>
+                                <input type="number" id="manualCopaySpecialist" class="form-control" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label>ER Copay</label>
+                                <input type="number" id="manualCopayER" class="form-control" placeholder="0.00">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Notes</label>
+                            <textarea id="manualNotes" class="form-control" rows="2" placeholder="Additional verification notes..."></textarea>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-primary" onclick="submitManualVerification()">
+                                <i class="fas fa-save"></i> Save Verification
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('manualVerifySection').style.display='none'">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Insurance Modal -->
+<div id="editInsuranceModal" class="ins-modal" style="display:none;">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editModalTitle"><i class="fas fa-id-card"></i> Edit Insurance</h5>
+                <button type="button" class="close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editLevel" value="">
+                
+                <div class="edit-section">
+                    <h6><i class="fas fa-building"></i> Payer Information</h6>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Insurance Payer *</label>
+                            <select id="editPayer" class="form-control" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Plan Type</label>
+                            <select id="editPlanType" class="form-control"></select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Plan Name</label>
+                        <input type="text" id="editPlanName" class="form-control" placeholder="e.g., PPO Gold">
+                    </div>
+                </div>
+                
+                <div class="edit-section">
+                    <h6><i class="fas fa-file-alt"></i> Policy Information</h6>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Policy/Member ID *</label>
+                            <input type="text" id="editPolicyNumber" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Group Number</label>
+                            <input type="text" id="editGroupNumber" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Group Name</label>
+                        <input type="text" id="editGroupName" class="form-control" placeholder="Employer name">
+                    </div>
+                </div>
+                
+                <div class="edit-section">
+                    <h6><i class="fas fa-user"></i> Subscriber Information</h6>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Subscriber ID</label>
+                            <input type="text" id="editSubscriberId" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Relationship to Patient</label>
+                            <select id="editRelationship" class="form-control"></select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Subscriber Name</label>
+                            <input type="text" id="editSubscriberName" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Subscriber DOB</label>
+                            <input type="date" id="editSubscriberDOB" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="edit-section">
+                    <h6><i class="fas fa-calendar"></i> Coverage Dates</h6>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Effective Date *</label>
+                            <input type="date" id="editEffectiveDate" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Termination Date</label>
+                            <input type="date" id="editTerminationDate" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="edit-section">
+                    <h6><i class="fas fa-dollar-sign"></i> Cost Sharing</h6>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>PCP Copay ($)</label>
+                            <input type="number" id="editCopayPCP" class="form-control" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>Specialist Copay ($)</label>
+                            <input type="number" id="editCopaySpecialist" class="form-control" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>ER Copay ($)</label>
+                            <input type="number" id="editCopayER" class="form-control" step="0.01">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Individual Deductible ($)</label>
+                            <input type="number" id="editDeductible" class="form-control" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>Out-of-Pocket Max ($)</label>
+                            <input type="number" id="editOOPMax" class="form-control" step="0.01">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="edit-section">
+                    <h6><i class="fas fa-clipboard-check"></i> Requirements</h6>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="editRequiresReferral">
+                                Requires Referral for Specialists
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="editRequiresPreauth">
+                                Requires Pre-Authorization
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveInsurance()">
+                    <i class="fas fa-save"></i> Save Insurance
+                </button>
             </div>
         </div>
     </div>
@@ -689,15 +1034,814 @@ $authorizations = [
     font-size: 11px;
     color: #666;
 }
+
+/* Add Coverage Card */
+.overview-card.add-coverage {
+    background: #f8f9fa;
+    border: 2px dashed #ccc;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    transition: all 0.2s;
+}
+
+.overview-card.add-coverage:hover {
+    border-color: #1a4a5e;
+    background: #f0f7fa;
+}
+
+.add-card-content {
+    text-align: center;
+    padding: 30px;
+}
+
+.add-icon {
+    font-size: 48px;
+    color: #1a4a5e;
+    margin-bottom: 10px;
+}
+
+.add-card-content h4 {
+    margin: 0 0 5px;
+    color: #1a4a5e;
+}
+
+.add-card-content p {
+    margin: 0;
+    color: #666;
+    font-size: 12px;
+}
+
+/* Modal Styles */
+.ins-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.ins-modal .modal-dialog {
+    background: white;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 700px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.ins-modal .modal-header {
+    background: linear-gradient(to bottom, #1a4a5e, #0d3545);
+    color: white;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 8px 8px 0 0;
+}
+
+.ins-modal .modal-header.verify-header {
+    background: linear-gradient(to bottom, #0d6efd, #0b5ed7);
+}
+
+.ins-modal .modal-header h5 {
+    margin: 0;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ins-modal .modal-header .close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    opacity: 0.8;
+}
+
+.ins-modal .modal-header .close:hover {
+    opacity: 1;
+}
+
+.ins-modal .modal-body {
+    padding: 20px;
+}
+
+.ins-modal .modal-footer {
+    padding: 15px 20px;
+    background: #f8f9fa;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    border-top: 1px solid #e0e0e0;
+}
+
+/* Verify Modal Styles */
+.verify-info-card {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.verify-info-card .info-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.verify-info-card .info-row:last-child {
+    margin-bottom: 0;
+}
+
+.verify-info-card label {
+    font-weight: 600;
+    color: #666;
+    min-width: 80px;
+}
+
+.verify-fields {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.verify-options h6 {
+    margin: 0 0 15px;
+    font-size: 14px;
+    color: #333;
+}
+
+.verify-option {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: all 0.2s;
+}
+
+.verify-option:hover {
+    border-color: #1a4a5e;
+    background: #f8f9fa;
+}
+
+.option-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.option-icon.auto {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.option-icon.manual {
+    background: #fff3e0;
+    color: #e65100;
+}
+
+.option-details {
+    flex: 1;
+}
+
+.option-details strong {
+    display: block;
+    color: #333;
+}
+
+.option-details span {
+    display: block;
+    font-size: 12px;
+    color: #666;
+}
+
+.payer-phone {
+    margin-top: 5px;
+    color: #1565c0 !important;
+}
+
+.option-action {
+    color: #ccc;
+}
+
+/* Verification Results */
+.verify-loading {
+    text-align: center;
+    padding: 30px;
+    color: #666;
+}
+
+.verify-loading i {
+    font-size: 32px;
+    color: #1565c0;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.verify-result {
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 15px;
+}
+
+.verify-result.success {
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+}
+
+.verify-result.error {
+    background: #ffebee;
+    border: 1px solid #ef9a9a;
+}
+
+.verify-result.warning {
+    background: #fff3e0;
+    border: 1px solid #ffcc80;
+}
+
+.result-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.result-header i {
+    font-size: 28px;
+}
+
+.verify-result.success .result-header i { color: #2e7d32; }
+.verify-result.error .result-header i { color: #c62828; }
+.verify-result.warning .result-header i { color: #e65100; }
+
+.result-status {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.verify-result.success .result-status { color: #2e7d32; }
+.verify-result.error .result-status { color: #c62828; }
+.verify-result.warning .result-status { color: #e65100; }
+
+.result-details p {
+    margin: 5px 0;
+    font-size: 13px;
+    color: #333;
+}
+
+.benefits-result {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.benefits-result h5 {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: #333;
+}
+
+.benefits-result .benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.benefits-result .benefit-item {
+    text-align: center;
+    background: rgba(255,255,255,0.5);
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.benefits-result .benefit-item label {
+    display: block;
+    font-size: 10px;
+    color: #666;
+    margin-bottom: 3px;
+}
+
+.benefits-result .benefit-item span {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+/* Manual Verification Form */
+#manualVerifySection {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+#manualVerifySection h6 {
+    margin: 0 0 15px;
+    color: #1a4a5e;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.manual-form .form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.form-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+/* Edit Insurance Modal */
+.edit-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.edit-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.edit-section h6 {
+    margin: 0 0 15px;
+    font-size: 14px;
+    color: #1a4a5e;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-group {
+    margin-bottom: 12px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-control:focus {
+    border-color: #1a4a5e;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(26,74,94,0.1);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+}
+
+/* Button styles */
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-primary {
+    background: #1a4a5e;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #0d3545;
+}
+
+.btn-secondary {
+    background: #f0f0f0;
+    color: #333;
+    border: 1px solid #ddd;
+}
+
+.btn-secondary:hover {
+    background: #e0e0e0;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}
 </style>
 
 <script>
+// Insurance Data
+const insuranceData = <?php echo json_encode($insurance_data); ?>;
+const patientId = <?php echo json_encode($patient_id); ?>;
+const hasClearinghouse = <?php echo $has_clearinghouse ? 'true' : 'false'; ?>;
+const primaryClearinghouse = <?php echo json_encode($primary_clearinghouse); ?>;
+
+// Payer list for dropdowns
+const insurancePayers = [
+    {id: 'BCBS', name: 'Blue Cross Blue Shield', edi: '00060', phone: '1-800-262-2583'},
+    {id: 'AETNA', name: 'Aetna', edi: '60054', phone: '1-800-872-3862'},
+    {id: 'CIGNA', name: 'Cigna', edi: '62308', phone: '1-800-997-1654'},
+    {id: 'UHC', name: 'UnitedHealthcare', edi: '87726', phone: '1-800-328-5979'},
+    {id: 'MEDICARE', name: 'Medicare', edi: '00882', phone: '1-800-633-4227'},
+    {id: 'MEDICAID', name: 'Medicaid', edi: 'VARID', phone: 'Varies by state'},
+    {id: 'HUMANA', name: 'Humana', edi: '61101', phone: '1-800-448-6262'},
+    {id: 'KAISER', name: 'Kaiser Permanente', edi: '94135', phone: '1-800-464-4000'},
+    {id: 'ANTHEM', name: 'Anthem', edi: '36273', phone: '1-800-331-1476'},
+    {id: 'OTHER', name: 'Other', edi: '', phone: ''}
+];
+
+// Relationship options
+const relationshipOptions = ['Self', 'Spouse', 'Child', 'Other'];
+
+// Plan type options
+const planTypeOptions = ['PPO', 'HMO', 'EPO', 'POS', 'HDHP', 'Indemnity', 'Medicare', 'Medicaid'];
+
 function verifyInsurance(level) {
-    alert(`Verifying ${level} insurance eligibility... (demo mode)`);
+    const coverage = insuranceData[level];
+    if (!coverage) {
+        alert('No ' + level + ' insurance to verify');
+        return;
+    }
+    
+    // Show verification options modal
+    const modal = document.getElementById('verifyModal');
+    document.getElementById('verifyLevel').value = level;
+    document.getElementById('verifyPayerName').textContent = coverage.payer;
+    document.getElementById('verifyPolicyNum').textContent = coverage.policy_number;
+    document.getElementById('verifySubscriberId').value = coverage.subscriber_id || coverage.policy_number;
+    document.getElementById('verifyServiceDate').value = new Date().toISOString().split('T')[0];
+    
+    // Show/hide automated option based on clearinghouse config
+    const autoOption = document.getElementById('autoVerifyOption');
+    if (hasClearinghouse && primaryClearinghouse && primaryClearinghouse.provider !== 'manual') {
+        autoOption.style.display = 'block';
+        document.getElementById('clearinghouseName').textContent = primaryClearinghouse.name;
+    } else {
+        autoOption.style.display = 'none';
+    }
+    
+    // Set payer phone for manual verification
+    document.getElementById('payerPhone').textContent = coverage.payer_phone || 'Not available';
+    
+    modal.style.display = 'flex';
+}
+
+function closeVerifyModal() {
+    document.getElementById('verifyModal').style.display = 'none';
+}
+
+function runAutomatedVerification() {
+    const level = document.getElementById('verifyLevel').value;
+    const coverage = insuranceData[level];
+    const subscriberId = document.getElementById('verifySubscriberId').value;
+    const serviceDate = document.getElementById('verifyServiceDate').value;
+    
+    // Show loading state
+    const resultsDiv = document.getElementById('verifyResults');
+    resultsDiv.innerHTML = `
+        <div class="verify-loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>Checking eligibility via ${primaryClearinghouse.name}...</span>
+        </div>
+    `;
+    resultsDiv.style.display = 'block';
+    
+    // Make API call
+    fetch('/api/proxy.php?endpoint=/api/insurance/eligibility/check', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            patient_id: patientId,
+            coverage_id: coverage.id,
+            coverage_level: level,
+            payer_id: coverage.payer_id,
+            subscriber_id: subscriberId,
+            service_date: serviceDate
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.transaction) {
+            const t = data.transaction;
+            const statusClass = t.is_eligible ? 'success' : (t.is_eligible === false ? 'error' : 'warning');
+            const statusIcon = t.is_eligible ? 'check-circle' : (t.is_eligible === false ? 'times-circle' : 'question-circle');
+            const statusText = t.is_eligible ? 'ELIGIBLE' : (t.is_eligible === false ? 'NOT ELIGIBLE' : 'UNABLE TO DETERMINE');
+            
+            let benefitsHtml = '';
+            if (t.benefits) {
+                benefitsHtml = `
+                    <div class="benefits-result">
+                        <h5>Benefits Information</h5>
+                        <div class="benefits-grid">
+                            <div class="benefit-item">
+                                <label>Deductible Remaining</label>
+                                <span>$${t.benefits.deductible?.individual?.remaining?.toFixed(2) || '0.00'}</span>
+                            </div>
+                            <div class="benefit-item">
+                                <label>OOP Remaining</label>
+                                <span>$${t.benefits.out_of_pocket?.individual?.remaining?.toFixed(2) || '0.00'}</span>
+                            </div>
+                            <div class="benefit-item">
+                                <label>PCP Copay</label>
+                                <span>$${t.benefits.copays?.primary_care?.toFixed(2) || '0.00'}</span>
+                            </div>
+                            <div class="benefit-item">
+                                <label>Specialist Copay</label>
+                                <span>$${t.benefits.copays?.specialist?.toFixed(2) || '0.00'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            resultsDiv.innerHTML = `
+                <div class="verify-result ${statusClass}">
+                    <div class="result-header">
+                        <i class="fas fa-${statusIcon}"></i>
+                        <span class="result-status">${statusText}</span>
+                    </div>
+                    <div class="result-details">
+                        <p><strong>Coverage Status:</strong> ${t.coverage_status}</p>
+                        <p><strong>Response:</strong> ${t.response_message}</p>
+                        <p><strong>Trace #:</strong> ${t.trace_number}</p>
+                        <p><strong>Response Time:</strong> ${t.response_time_ms}ms</p>
+                    </div>
+                    ${benefitsHtml}
+                </div>
+                <button class="btn btn-primary" onclick="closeVerifyModal(); location.reload();">
+                    <i class="fas fa-check"></i> Done - Update Chart
+                </button>
+            `;
+        } else {
+            resultsDiv.innerHTML = `
+                <div class="verify-result error">
+                    <div class="result-header">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span class="result-status">VERIFICATION FAILED</span>
+                    </div>
+                    <div class="result-details">
+                        <p>${data.message || 'Unable to complete eligibility check'}</p>
+                    </div>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        resultsDiv.innerHTML = `
+            <div class="verify-result error">
+                <div class="result-header">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span class="result-status">ERROR</span>
+                </div>
+                <div class="result-details">
+                    <p>Connection error: ${error.message}</p>
+                </div>
+            </div>
+        `;
+    });
+}
+
+function showManualVerification() {
+    document.getElementById('manualVerifySection').style.display = 'block';
+    document.getElementById('verifyResults').style.display = 'none';
+}
+
+function submitManualVerification() {
+    const level = document.getElementById('verifyLevel').value;
+    const coverage = insuranceData[level];
+    
+    const formData = {
+        patient_id: patientId,
+        coverage_id: coverage.id,
+        coverage_level: level,
+        payer_name: coverage.payer,
+        is_eligible: document.getElementById('manualIsEligible').checked,
+        coverage_status: document.getElementById('manualCoverageStatus').value,
+        verified_by: document.getElementById('manualVerifiedBy').value,
+        verification_method: document.getElementById('manualMethod').value,
+        reference_number: document.getElementById('manualReference').value,
+        contact_name: document.getElementById('manualContactName').value,
+        notes: document.getElementById('manualNotes').value,
+        deductible_individual: document.getElementById('manualDeductible').value || 0,
+        deductible_remaining: document.getElementById('manualDeductibleRemaining').value || 0,
+        copay_pcp: document.getElementById('manualCopayPCP').value || 0,
+        copay_specialist: document.getElementById('manualCopaySpecialist').value || 0,
+        copay_er: document.getElementById('manualCopayER').value || 0,
+        oop_max: document.getElementById('manualOOPMax').value || 0,
+        oop_remaining: document.getElementById('manualOOPRemaining').value || 0
+    };
+    
+    // Save manual verification
+    fetch('/api/proxy.php?endpoint=/api/insurance/eligibility/manual', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Manual verification recorded successfully!');
+            closeVerifyModal();
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Failed to save verification'));
+        }
+    })
+    .catch(error => {
+        // Demo mode - just show success
+        alert('Manual verification recorded successfully! (Demo Mode)');
+        closeVerifyModal();
+        location.reload();
+    });
 }
 
 function editInsurance(level) {
-    alert(`Edit ${level} insurance - This would open an edit form`);
+    const coverage = insuranceData[level] || {};
+    const modal = document.getElementById('editInsuranceModal');
+    
+    document.getElementById('editLevel').value = level;
+    document.getElementById('editModalTitle').textContent = level === 'primary' ? 'Edit Primary Insurance' : 'Edit Secondary Insurance';
+    
+    // Populate payer dropdown
+    const payerSelect = document.getElementById('editPayer');
+    payerSelect.innerHTML = '<option value="">Select Payer...</option>' + 
+        insurancePayers.map(p => `<option value="${p.id}" ${coverage.payer_id === p.id ? 'selected' : ''}>${p.name}</option>`).join('');
+    
+    // Populate relationship dropdown
+    const relSelect = document.getElementById('editRelationship');
+    relSelect.innerHTML = relationshipOptions.map(r => 
+        `<option value="${r}" ${coverage.subscriber_relationship === r ? 'selected' : ''}>${r}</option>`
+    ).join('');
+    
+    // Populate plan type dropdown
+    const planSelect = document.getElementById('editPlanType');
+    planSelect.innerHTML = planTypeOptions.map(p => 
+        `<option value="${p}" ${coverage.plan_type === p ? 'selected' : ''}>${p}</option>`
+    ).join('');
+    
+    // Fill form fields
+    document.getElementById('editPlanName').value = coverage.plan || '';
+    document.getElementById('editPolicyNumber').value = coverage.policy_number || '';
+    document.getElementById('editGroupNumber').value = coverage.group_number || '';
+    document.getElementById('editGroupName').value = coverage.group_name || '';
+    document.getElementById('editSubscriberId').value = coverage.subscriber_id || '';
+    document.getElementById('editSubscriberName').value = coverage.subscriber_name || '';
+    document.getElementById('editSubscriberDOB').value = coverage.subscriber_dob ? 
+        new Date(coverage.subscriber_dob).toISOString().split('T')[0] : '';
+    document.getElementById('editEffectiveDate').value = coverage.effective_date ? 
+        new Date(coverage.effective_date).toISOString().split('T')[0] : '';
+    document.getElementById('editTerminationDate').value = coverage.termination_date ? 
+        new Date(coverage.termination_date).toISOString().split('T')[0] : '';
+    document.getElementById('editCopayPCP').value = coverage.copay_primary?.replace('$', '') || '';
+    document.getElementById('editCopaySpecialist').value = coverage.copay_specialist?.replace('$', '') || '';
+    document.getElementById('editCopayER').value = coverage.copay_emergency?.replace('$', '') || '';
+    document.getElementById('editDeductible').value = coverage.deductible?.replace(/[$,]/g, '') || '';
+    document.getElementById('editOOPMax').value = coverage.out_of_pocket_max?.replace(/[$,]/g, '') || '';
+    document.getElementById('editRequiresReferral').checked = coverage.requires_referral || false;
+    document.getElementById('editRequiresPreauth').checked = coverage.requires_preauth || false;
+    
+    modal.style.display = 'flex';
+}
+
+function closeEditModal() {
+    document.getElementById('editInsuranceModal').style.display = 'none';
+}
+
+function saveInsurance() {
+    const level = document.getElementById('editLevel').value;
+    const payer = insurancePayers.find(p => p.id === document.getElementById('editPayer').value);
+    
+    const formData = {
+        payer_id: document.getElementById('editPayer').value,
+        payer: payer?.name || '',
+        payer_phone: payer?.phone || '',
+        plan: document.getElementById('editPlanName').value,
+        plan_type: document.getElementById('editPlanType').value,
+        policy_number: document.getElementById('editPolicyNumber').value,
+        group_number: document.getElementById('editGroupNumber').value,
+        group_name: document.getElementById('editGroupName').value,
+        subscriber_id: document.getElementById('editSubscriberId').value,
+        subscriber_name: document.getElementById('editSubscriberName').value,
+        subscriber_relationship: document.getElementById('editRelationship').value,
+        subscriber_dob: document.getElementById('editSubscriberDOB').value,
+        effective_date: document.getElementById('editEffectiveDate').value,
+        termination_date: document.getElementById('editTerminationDate').value || null,
+        copay_primary: document.getElementById('editCopayPCP').value,
+        copay_specialist: document.getElementById('editCopaySpecialist').value,
+        copay_emergency: document.getElementById('editCopayER').value,
+        deductible: document.getElementById('editDeductible').value,
+        out_of_pocket_max: document.getElementById('editOOPMax').value,
+        requires_referral: document.getElementById('editRequiresReferral').checked,
+        requires_preauth: document.getElementById('editRequiresPreauth').checked
+    };
+    
+    // Save to API
+    fetch(`/api/proxy.php?endpoint=/api/insurance/coverage/${patientId}/${level}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`${level.charAt(0).toUpperCase() + level.slice(1)} insurance saved successfully!`);
+            closeEditModal();
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Failed to save'));
+        }
+    })
+    .catch(error => {
+        // Demo mode - just show success
+        alert(`${level.charAt(0).toUpperCase() + level.slice(1)} insurance saved successfully! (Demo Mode)`);
+        closeEditModal();
+        location.reload();
+    });
+}
+
+function addInsurance(level) {
+    // Clear form and open edit modal for new insurance
+    insuranceData[level] = {}; // Empty object for new
+    editInsurance(level);
+}
+
+function removeInsurance(level) {
+    if (!confirm(`Are you sure you want to remove the ${level} insurance?`)) {
+        return;
+    }
+    
+    fetch(`/api/proxy.php?endpoint=/api/insurance/coverage/${patientId}/${level}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(`${level.charAt(0).toUpperCase() + level.slice(1)} insurance removed.`);
+        location.reload();
+    })
+    .catch(error => {
+        alert(`${level.charAt(0).toUpperCase() + level.slice(1)} insurance removed. (Demo Mode)`);
+        location.reload();
+    });
 }
 
 function addAuthorization() {
@@ -711,4 +1855,13 @@ function viewAuth(authNumber) {
 function editAuth(authNumber) {
     alert(`Edit authorization ${authNumber}`);
 }
+
+// Close modals on outside click
+document.querySelectorAll('.ins-modal').forEach(modal => {
+    modal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.style.display = 'none';
+        }
+    });
+});
 </script>

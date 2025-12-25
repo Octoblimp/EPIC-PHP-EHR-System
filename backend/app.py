@@ -35,6 +35,7 @@ def create_app(config_name='default'):
     from routes.lab_routes import lab_bp
     from routes.note_routes import note_bp
     from routes.auth_routes import auth_bp
+    from routes.insurance_routes import insurance_bp
     
     app.register_blueprint(auth_bp)  # Already has url_prefix='/api/auth'
     app.register_blueprint(patient_bp, url_prefix='/api/patients')
@@ -44,6 +45,7 @@ def create_app(config_name='default'):
     app.register_blueprint(flowsheet_bp, url_prefix='/api/flowsheets')
     app.register_blueprint(lab_bp, url_prefix='/api/labs')
     app.register_blueprint(note_bp, url_prefix='/api/notes')
+    app.register_blueprint(insurance_bp)  # Routes defined with /api prefix
     
     # Root endpoint
     @app.route('/')
@@ -59,7 +61,8 @@ def create_app(config_name='default'):
                 'vitals': '/api/vitals',
                 'flowsheets': '/api/flowsheets',
                 'labs': '/api/labs',
-                'notes': '/api/notes'
+                'notes': '/api/notes',
+                'insurance': '/api/insurance'
             }
         })
     

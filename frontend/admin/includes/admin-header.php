@@ -20,6 +20,7 @@ $admin_sidebar_items = [
     'roles' => ['icon' => 'fa-user-shield', 'label' => 'Roles'],
     'page-access' => ['icon' => 'fa-lock', 'label' => 'Page Access'],
     'shortcodes' => ['icon' => 'fa-keyboard', 'label' => 'Shortcodes'],
+    'integrations' => ['icon' => 'fa-plug', 'label' => 'Integrations'],
     'audit' => ['icon' => 'fa-clipboard-list', 'label' => 'Audit Log'],
     'db-updater' => ['icon' => 'fa-database', 'label' => 'Database'],
 ];
