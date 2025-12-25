@@ -22,3 +22,5 @@ from models.role import Role, Permission
 from models.scheduling import Appointment
 from models.theme import Theme
 from models.non_clinical import Message
+from models.shortcode import Shortcode, PageAccess
+

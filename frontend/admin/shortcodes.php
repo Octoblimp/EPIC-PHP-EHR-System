@@ -2,6 +2,7 @@
 /**
  * Openspace EHR - Admin Shortcodes Management
  * Manage Go To shortcodes for patient chart navigation
+ * Stores shortcodes in database via API
  */
 $page_title = 'Manage Shortcodes - Admin';
 
@@ -24,30 +25,63 @@ if (!$is_admin) {
 $success_message = '';
 $error_message = '';
 
-// Default shortcodes
+// API base URL
+$api_base = defined('API_URL') ? API_URL : 'http://127.0.0.1:5000/api';
+
+// Helper function to call API
+function callShortcodeApi($endpoint, $method = 'GET', $data = null) {
+    global $api_base;
+    $url = $api_base . $endpoint;
+    
+    $options = [
+        'http' => [
+            'method' => $method,
+            'header' => 'Content-Type: application/json',
+            'ignore_errors' => true,
+            'timeout' => 10
+        ]
+    ];
+    
+    if ($data !== null) {
+        $options['http']['content'] = json_encode($data);
+    }
+    
+    $context = stream_context_create($options);
+    $response = @file_get_contents($url, false, $context);
+    
+    if ($response === false) {
+        return ['success' => false, 'error' => 'API connection failed'];
+    }
+    
+    return json_decode($response, true) ?? ['success' => false, 'error' => 'Invalid response'];
+}
+
+// Default shortcodes (fallback when API unavailable)
 $default_shortcodes = [
-    ['code' => 'sum', 'name' => 'Summary', 'tab' => 'summary', 'icon' => 'fa-clipboard', 'category' => 'Main Views'],
-    ['code' => 'cr', 'name' => 'Chart Review', 'tab' => 'chart-review', 'icon' => 'fa-file-medical', 'category' => 'Main Views'],
-    ['code' => 'res', 'name' => 'Results', 'tab' => 'results', 'icon' => 'fa-flask', 'category' => 'Main Views'],
-    ['code' => 'lab', 'name' => 'Lab Results', 'tab' => 'results', 'icon' => 'fa-vials', 'category' => 'Results'],
-    ['code' => 'wl', 'name' => 'Work List', 'tab' => 'work-list', 'icon' => 'fa-tasks', 'category' => 'Main Views'],
-    ['code' => 'mar', 'name' => 'MAR', 'tab' => 'mar', 'icon' => 'fa-pills', 'category' => 'Medications'],
-    ['code' => 'med', 'name' => 'Medications', 'tab' => 'mar', 'icon' => 'fa-prescription-bottle', 'category' => 'Medications'],
-    ['code' => 'fs', 'name' => 'Flowsheets', 'tab' => 'flowsheets', 'icon' => 'fa-chart-line', 'category' => 'Documentation'],
-    ['code' => 'vs', 'name' => 'Vitals', 'tab' => 'flowsheets', 'icon' => 'fa-heartbeat', 'category' => 'Documentation'],
-    ['code' => 'io', 'name' => 'Intake/Output', 'tab' => 'intake-output', 'icon' => 'fa-balance-scale', 'category' => 'Documentation'],
-    ['code' => 'not', 'name' => 'Notes', 'tab' => 'notes', 'icon' => 'fa-sticky-note', 'category' => 'Documentation'],
-    ['code' => 'pn', 'name' => 'Progress Notes', 'tab' => 'notes', 'icon' => 'fa-file-alt', 'category' => 'Documentation'],
-    ['code' => 'edu', 'name' => 'Education', 'tab' => 'education', 'icon' => 'fa-graduation-cap', 'category' => 'Patient Info'],
-    ['code' => 'cp', 'name' => 'Care Plan', 'tab' => 'care-plan', 'icon' => 'fa-clipboard-list', 'category' => 'Care Planning'],
-    ['code' => 'ord', 'name' => 'Orders', 'tab' => 'orders', 'icon' => 'fa-prescription', 'category' => 'Orders'],
-    ['code' => 'rx', 'name' => 'Prescriptions', 'tab' => 'orders', 'icon' => 'fa-capsules', 'category' => 'Orders'],
-    ['code' => 'img', 'name' => 'Imaging', 'tab' => 'results', 'icon' => 'fa-x-ray', 'category' => 'Results'],
-    ['code' => 'dx', 'name' => 'Diagnoses', 'tab' => 'chart-review', 'icon' => 'fa-diagnoses', 'category' => 'Clinical'],
-    ['code' => 'hx', 'name' => 'History', 'tab' => 'chart-review', 'icon' => 'fa-history', 'category' => 'Clinical'],
-    ['code' => 'all', 'name' => 'Allergies', 'tab' => 'summary', 'icon' => 'fa-exclamation-triangle', 'category' => 'Clinical'],
-    ['code' => 'prob', 'name' => 'Problem List', 'tab' => 'chart-review', 'icon' => 'fa-list-ul', 'category' => 'Clinical'],
-    ['code' => 'imm', 'name' => 'Immunizations', 'tab' => 'chart-review', 'icon' => 'fa-syringe', 'category' => 'Clinical'],
+    ['id' => 1, 'code' => 'sum', 'name' => 'Summary', 'tab' => 'summary', 'icon' => 'fa-clipboard', 'category' => 'Main Views', 'is_system' => true],
+    ['id' => 2, 'code' => 'cr', 'name' => 'Chart Review', 'tab' => 'chart-review', 'icon' => 'fa-file-medical', 'category' => 'Main Views', 'is_system' => true],
+    ['id' => 3, 'code' => 'res', 'name' => 'Results', 'tab' => 'results', 'icon' => 'fa-flask', 'category' => 'Main Views', 'is_system' => true],
+    ['id' => 4, 'code' => 'lab', 'name' => 'Lab Results', 'tab' => 'results', 'icon' => 'fa-vials', 'category' => 'Results', 'is_system' => true],
+    ['id' => 5, 'code' => 'wl', 'name' => 'Work List', 'tab' => 'work-list', 'icon' => 'fa-tasks', 'category' => 'Main Views', 'is_system' => true],
+    ['id' => 6, 'code' => 'mar', 'name' => 'MAR', 'tab' => 'mar', 'icon' => 'fa-pills', 'category' => 'Medications', 'is_system' => true],
+    ['id' => 7, 'code' => 'med', 'name' => 'Medications', 'tab' => 'mar', 'icon' => 'fa-prescription-bottle', 'category' => 'Medications', 'is_system' => true],
+    ['id' => 8, 'code' => 'fs', 'name' => 'Flowsheets', 'tab' => 'flowsheets', 'icon' => 'fa-chart-line', 'category' => 'Documentation', 'is_system' => true],
+    ['id' => 9, 'code' => 'vs', 'name' => 'Vitals', 'tab' => 'flowsheets', 'icon' => 'fa-heartbeat', 'category' => 'Documentation', 'is_system' => true],
+    ['id' => 10, 'code' => 'io', 'name' => 'Intake/Output', 'tab' => 'intake-output', 'icon' => 'fa-balance-scale', 'category' => 'Documentation', 'is_system' => true],
+    ['id' => 11, 'code' => 'not', 'name' => 'Notes', 'tab' => 'notes', 'icon' => 'fa-sticky-note', 'category' => 'Documentation', 'is_system' => true],
+    ['id' => 12, 'code' => 'pn', 'name' => 'Progress Notes', 'tab' => 'notes', 'icon' => 'fa-file-alt', 'category' => 'Documentation', 'is_system' => true],
+    ['id' => 13, 'code' => 'edu', 'name' => 'Education', 'tab' => 'education', 'icon' => 'fa-graduation-cap', 'category' => 'Patient Info', 'is_system' => true],
+    ['id' => 14, 'code' => 'cp', 'name' => 'Care Plan', 'tab' => 'care-plan', 'icon' => 'fa-clipboard-list', 'category' => 'Care Planning', 'is_system' => true],
+    ['id' => 15, 'code' => 'ord', 'name' => 'Orders', 'tab' => 'orders', 'icon' => 'fa-prescription', 'category' => 'Orders', 'is_system' => true],
+    ['id' => 16, 'code' => 'rx', 'name' => 'Prescriptions', 'tab' => 'orders', 'icon' => 'fa-capsules', 'category' => 'Orders', 'is_system' => true],
+    ['id' => 17, 'code' => 'img', 'name' => 'Imaging', 'tab' => 'results', 'icon' => 'fa-x-ray', 'category' => 'Results', 'is_system' => true],
+    ['id' => 18, 'code' => 'dx', 'name' => 'Diagnoses', 'tab' => 'chart-review', 'icon' => 'fa-diagnoses', 'category' => 'Clinical', 'is_system' => true],
+    ['id' => 19, 'code' => 'hx', 'name' => 'History', 'tab' => 'history', 'icon' => 'fa-history', 'category' => 'Clinical', 'is_system' => true],
+    ['id' => 20, 'code' => 'all', 'name' => 'Allergies', 'tab' => 'summary', 'icon' => 'fa-exclamation-triangle', 'category' => 'Clinical', 'is_system' => true],
+    ['id' => 21, 'code' => 'prob', 'name' => 'Problem List', 'tab' => 'chart-review', 'icon' => 'fa-list-ul', 'category' => 'Clinical', 'is_system' => true],
+    ['id' => 22, 'code' => 'imm', 'name' => 'Immunizations', 'tab' => 'chart-review', 'icon' => 'fa-syringe', 'category' => 'Clinical', 'is_system' => true],
+    ['id' => 23, 'code' => 'dem', 'name' => 'Demographics', 'tab' => 'demographics', 'icon' => 'fa-id-card', 'category' => 'Patient Info', 'is_system' => true],
+    ['id' => 24, 'code' => 'ins', 'name' => 'Insurance', 'tab' => 'insurance', 'icon' => 'fa-shield-alt', 'category' => 'Patient Info', 'is_system' => true],
 ];
 
 // Get shortcodes from session (would be from DB in production)

@@ -51,6 +51,8 @@ $ROLE_PERMISSIONS = [
         'admin.roles' => true,
         'admin.audit_log' => true,
         'admin.system_config' => true,
+        'admin.shortcodes' => true,
+        'admin.page_access' => true,
         // All lab
         'lab.view_results' => true,
         'lab.order_tests' => true,
@@ -382,6 +384,8 @@ $ROLE_PERMISSIONS = [
         'admin.roles' => false,
         'admin.audit_log' => false,
         'admin.system_config' => false,
+        'admin.shortcodes' => false,
+        'admin.page_access' => false,
         // Lab - full
         'lab.view_results' => true,
         'lab.order_tests' => false,
@@ -401,15 +405,21 @@ $SCREEN_PERMISSIONS = [
     'schedule.php' => 'screens.schedule',
     'patient-search.php' => 'screens.patient_search',
     'patient.php' => 'screens.patient_chart',
+    'patient-chart.php' => 'screens.patient_chart',
+    'patients.php' => 'screens.patient_search',
     'inbox.php' => 'screens.inbox',
     'orders.php' => 'screens.orders',
+    'notes.php' => 'screens.patient_chart',
     'reports.php' => 'screens.reports',
     'billing.php' => 'screens.billing',
-    'admin/index.php' => 'screens.admin',
-    'admin/users.php' => 'screens.admin',
-    'admin/roles.php' => 'screens.admin',
-    'admin/audit-log.php' => 'screens.admin',
-    'admin/db-updater.php' => 'screens.admin',
+    'admin/index.php' => 'admin.access',
+    'admin/users.php' => 'admin.users',
+    'admin/roles.php' => 'admin.roles',
+    'admin/shortcodes.php' => 'admin.shortcodes',
+    'admin/page-access.php' => 'admin.page_access',
+    'admin/audit.php' => 'admin.audit_log',
+    'admin/audit-log.php' => 'admin.audit_log',
+    'admin/db-updater.php' => 'admin.system_config',
     'settings.php' => 'screens.settings',
     'profile.php' => 'screens.settings',
 ];
@@ -608,6 +618,94 @@ function loadUserPermissionOverrides($userId) {
 }
 
 /**
+ * Check page-level access from database/session
+ * Returns the access level: none, view, edit, full
+ * 
+ * @param string $pageCode The page code (e.g., 'admin.shortcodes', 'patient.summary')
+ * @return string Access level
+ */
+function getPageAccessLevel($pageCode) {
+    $role = getUserRole();
+    
+    // Super admin always has full access
+    if ($role === 'administrator') {
+        return 'full';
+    }
+    
+    // Get role ID (simplified - in production would query DB)
+    $roleIds = [
+        'administrator' => 1,
+        'physician' => 2,
+        'nurse' => 3,
+        'medical_assistant' => 4,
+        'front_desk' => 5,
+        'billing' => 6,
+        'lab_tech' => 7,
+    ];
+    $roleId = $roleIds[$role] ?? 0;
+    
+    // Check session-stored page access
+    $pageAccess = $_SESSION['page_access'] ?? [];
+    
+    if (isset($pageAccess[$roleId][$pageCode])) {
+        return $pageAccess[$roleId][$pageCode]['access_level'] ?? 'none';
+    }
+    
+    // Default access based on role defaults
+    return 'none';
+}
+
+/**
+ * Check if user can perform action on page
+ * 
+ * @param string $pageCode
+ * @param string $action 'view', 'create', 'edit', 'delete', 'export'
+ * @return bool
+ */
+function canPerformPageAction($pageCode, $action) {
+    $level = getPageAccessLevel($pageCode);
+    
+    switch ($action) {
+        case 'view':
+            return in_array($level, ['view', 'edit', 'full']);
+        case 'create':
+        case 'edit':
+            return in_array($level, ['edit', 'full']);
+        case 'delete':
+        case 'export':
+            return $level === 'full';
+        default:
+            return false;
+    }
+}
+
+/**
+ * Require specific page access level
+ * 
+ * @param string $pageCode
+ * @param string $minLevel Minimum required level ('view', 'edit', 'full')
+ * @param string $redirectUrl
+ */
+function requirePageAccess($pageCode, $minLevel = 'view', $redirectUrl = '/home.php') {
+    $level = getPageAccessLevel($pageCode);
+    $levels = ['none' => 0, 'view' => 1, 'edit' => 2, 'full' => 3];
+    
+    if (($levels[$level] ?? 0) < ($levels[$minLevel] ?? 0)) {
+        if (function_exists('logAudit')) {
+            logAudit('unauthorized_page_access', [
+                'page_code' => $pageCode,
+                'required_level' => $minLevel,
+                'user_level' => $level,
+            ]);
+        }
+        
+        $_SESSION['error_message'] = 'You do not have sufficient permission to access this page.';
+        header("Location: $redirectUrl");
+        exit;
+    }
+}
+
+/**
  * Render an "Access Denied" message (for AJAX or partial page loads)
  */
 function renderAccessDenied() {
@@ -617,3 +715,4 @@ function renderAccessDenied() {
         <p>You do not have permission to access this resource. If you believe this is an error, please contact your system administrator.</p>
     </div>';
 }
+

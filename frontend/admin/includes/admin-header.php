@@ -18,6 +18,7 @@ $admin_sidebar_items = [
     'index' => ['icon' => 'fa-tachometer-alt', 'label' => 'Dashboard'],
     'users' => ['icon' => 'fa-users', 'label' => 'Users'],
     'roles' => ['icon' => 'fa-user-shield', 'label' => 'Roles'],
+    'page-access' => ['icon' => 'fa-lock', 'label' => 'Page Access'],
     'shortcodes' => ['icon' => 'fa-keyboard', 'label' => 'Shortcodes'],
     'audit' => ['icon' => 'fa-clipboard-list', 'label' => 'Audit Log'],
     'db-updater' => ['icon' => 'fa-database', 'label' => 'Database'],

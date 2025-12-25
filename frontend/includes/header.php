@@ -88,6 +88,7 @@ $patient_sidebar_items = [
     'care-plan' => ['icon' => 'fa-clipboard-list', 'label' => 'Care Plan'],
     'orders' => ['icon' => 'fa-prescription', 'label' => 'Orders'],
     'demographics' => ['icon' => 'fa-id-card', 'label' => 'Demographics'],
+    'insurance' => ['icon' => 'fa-shield-alt', 'label' => 'Insurance'],
     'history' => ['icon' => 'fa-history', 'label' => 'History'],
 ];
 
@@ -113,7 +114,10 @@ $more_menu_items = [
     ['label' => 'Care Plan', 'tab' => 'care-plan', 'icon' => 'fa-clipboard-list'],
     ['label' => 'Orders', 'tab' => 'orders', 'icon' => 'fa-prescription'],
     ['label' => 'Demographics', 'tab' => 'demographics', 'icon' => 'fa-id-card'],
+    ['label' => 'Insurance', 'tab' => 'insurance', 'icon' => 'fa-shield-alt'],
     ['label' => 'History', 'tab' => 'history', 'icon' => 'fa-history'],
+    ['divider' => true],
+    ['label' => 'Customize', 'action' => 'customize', 'icon' => 'fa-cog'],
 ];
 
 // Get current patient ID and tab for sidebar
@@ -1573,6 +1577,8 @@ const defaultShortcodes = {
     'ord': { tab: 'orders', label: 'Orders', icon: 'fa-prescription' },
     'rx': { tab: 'orders', label: 'Prescriptions', icon: 'fa-capsules' },
     'demo': { tab: 'demographics', label: 'Demographics', icon: 'fa-id-card' },
+    'dem': { tab: 'demographics', label: 'Demographics', icon: 'fa-id-card' },
+    'ins': { tab: 'insurance', label: 'Insurance', icon: 'fa-shield-alt' },
     'hx': { tab: 'history', label: 'History', icon: 'fa-history' },
     'all': { tab: 'summary', label: 'Allergies', icon: 'fa-exclamation-triangle' },
     'prob': { tab: 'chart-review', label: 'Problem List', icon: 'fa-list-ul' },
