@@ -13,4 +13,5 @@ from models.clearinghouse import ClearinghouseConfig, EligibilityTransaction, CL
 from models.theme import Theme
 from models.non_clinical import Message
 from models.shortcode import Shortcode, PageAccess
+from models.role import Role, RolePermission
 
