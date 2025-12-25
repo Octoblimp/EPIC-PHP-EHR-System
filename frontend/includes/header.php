@@ -316,6 +316,120 @@ function hasNavPermission($permission) {
             border-left: none;
         }
         
+        /* Go To Menu - Popout Style */
+        .goto-menu {
+            position: fixed;
+            bottom: 90px;
+            left: 60px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            box-shadow: 2px 2px 12px rgba(0,0,0,0.5);
+            min-width: 220px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 2000;
+            display: none;
+            padding: 0;
+            font-size: 12px;
+            border-radius: 4px;
+        }
+        
+        .goto-menu.show {
+            display: block;
+        }
+        
+        .goto-menu-header {
+            padding: 8px 12px;
+            background: #252525;
+            border-bottom: 1px solid #444;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .goto-menu-header input {
+            flex: 1;
+            background: #333;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 5px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .goto-menu-header input:focus {
+            outline: none;
+            border-color: #0078d4;
+        }
+        
+        .goto-menu-header .close-btn {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0;
+        }
+        
+        .goto-menu-header .close-btn:hover {
+            color: #fff;
+        }
+        
+        .goto-menu-section {
+            padding: 4px 10px;
+            font-size: 10px;
+            color: #888;
+            text-transform: uppercase;
+            background: #202020;
+            border-bottom: 1px solid #333;
+        }
+        
+        .goto-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 12px;
+            color: #ccc;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .goto-menu-item:hover,
+        .goto-menu-item.selected {
+            background: #0078d4;
+            color: white;
+        }
+        
+        .goto-menu-item i {
+            width: 16px;
+            text-align: center;
+            color: #4fc3f7;
+            font-size: 11px;
+        }
+        
+        .goto-menu-item:hover i,
+        .goto-menu-item.selected i {
+            color: white;
+        }
+        
+        .goto-menu-item .shortcode {
+            margin-left: auto;
+            font-size: 10px;
+            color: #666;
+            font-family: monospace;
+        }
+        
+        .goto-menu-item:hover .shortcode,
+        .goto-menu-item.selected .shortcode {
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .goto-menu-empty {
+            padding: 15px;
+            text-align: center;
+            color: #666;
+        }
+        
         /* More Menu - Windows Context Menu Style */
         .more-menu {
             position: fixed;
@@ -1027,10 +1141,18 @@ function hasNavPermission($permission) {
                         </a>
                     </div>
                     <div class="nav-goto">
-                        <div class="nav-item" onclick="openGoToModal()" title="Go To (Ctrl+G)">
+                        <div class="nav-item" onclick="toggleGoToMenu(event)" title="Go To (Ctrl+G)">
                             <i class="fas fa-bolt nav-icon"></i>
                             <span class="nav-label">Go To</span>
                         </div>
+                    </div>
+                    <!-- Go To Menu - Popout Style -->
+                    <div class="goto-menu" id="gotoMenu">
+                        <div class="goto-menu-header">
+                            <input type="text" id="gotoMenuInput" placeholder="Type shortcode or page name..." autocomplete="off">
+                            <button class="close-btn" onclick="closeGoToMenu()">&times;</button>
+                        </div>
+                        <div id="gotoMenuResults"></div>
                     </div>
                     <div class="nav-more">
                         <div class="nav-item" onclick="toggleMoreMenu(event)" title="More">
@@ -1267,6 +1389,12 @@ document.addEventListener('click', function(event) {
     if (moreMenu && moreBtn && !moreMenu.contains(event.target) && !moreBtn.contains(event.target)) {
         moreMenu.classList.remove('show');
     }
+    
+    const gotoMenu = document.getElementById('gotoMenu');
+    const gotoBtn = document.querySelector('.nav-goto');
+    if (gotoMenu && gotoBtn && !gotoMenu.contains(event.target) && !gotoBtn.contains(event.target)) {
+        gotoMenu.classList.remove('show');
+    }
 });
 
 // Global search - Enter key still works for full search page
@@ -1458,32 +1586,39 @@ let pageShortcodes = JSON.parse(localStorage.getItem('pageShortcodes')) || defau
 let gotoSelectedIndex = 0;
 let gotoFilteredItems = [];
 
-// Go To Modal
-function openGoToModal() {
-    // Create modal if it doesn't exist
-    let modal = document.getElementById('gotoModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'gotoModal';
-        modal.className = 'goto-modal';
-        modal.innerHTML = `
-            <div class="goto-box">
-                <div class="goto-header">
-                    <i class="fas fa-bolt"></i>
-                    <h3>Go To Page</h3>
-                    <button class="goto-close" onclick="closeGoToModal()">&times;</button>
-                </div>
-                <div class="goto-search">
-                    <input type="text" id="gotoInput" placeholder="Type shortcode or page name..." 
-                           oninput="filterGoToItems(this.value)" autocomplete="off">
-                </div>
-                <div class="goto-results" id="gotoResults"></div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        
-        // Add keyboard navigation
-        modal.querySelector('#gotoInput').addEventListener('keydown', function(e) {
+// Go To Menu - Popout style
+function toggleGoToMenu(event) {
+    if (event) event.stopPropagation();
+    const menu = document.getElementById('gotoMenu');
+    const isShowing = menu.classList.contains('show');
+    
+    // Close other menus
+    closeMoreMenu();
+    
+    if (isShowing) {
+        closeGoToMenu();
+    } else {
+        menu.classList.add('show');
+        const input = document.getElementById('gotoMenuInput');
+        input.value = '';
+        input.focus();
+        gotoSelectedIndex = 0;
+        filterGoToItems('');
+    }
+}
+
+function closeGoToMenu() {
+    document.getElementById('gotoMenu')?.classList.remove('show');
+}
+
+// Setup Go To menu input handlers
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('gotoMenuInput');
+    if (input) {
+        input.addEventListener('input', function() {
+            filterGoToItems(this.value);
+        });
+        input.addEventListener('keydown', function(e) {
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 gotoSelectedIndex = Math.min(gotoSelectedIndex + 1, gotoFilteredItems.length - 1);
@@ -1496,21 +1631,11 @@ function openGoToModal() {
                 e.preventDefault();
                 selectGoToItem(gotoSelectedIndex);
             } else if (e.key === 'Escape') {
-                closeGoToModal();
+                closeGoToMenu();
             }
         });
     }
-    
-    modal.classList.add('show');
-    document.getElementById('gotoInput').value = '';
-    document.getElementById('gotoInput').focus();
-    gotoSelectedIndex = 0;
-    filterGoToItems('');
-}
-
-function closeGoToModal() {
-    document.getElementById('gotoModal')?.classList.remove('show');
-}
+});
 
 function filterGoToItems(query) {
     query = query.toLowerCase().trim();
@@ -1531,25 +1656,23 @@ function filterGoToItems(query) {
 }
 
 function renderGoToResults() {
-    const results = document.getElementById('gotoResults');
+    const results = document.getElementById('gotoMenuResults');
+    if (!results) return;
     
     if (gotoFilteredItems.length === 0) {
-        results.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">No matching pages</div>';
+        results.innerHTML = '<div class="goto-menu-empty">No matching pages</div>';
         return;
     }
     
-    let html = '<div class="goto-section">Patient Chart Pages</div>';
+    let html = '<div class="goto-menu-section">Patient Chart Pages</div>';
     
     gotoFilteredItems.forEach((item, idx) => {
         const selected = idx === gotoSelectedIndex ? 'selected' : '';
         html += `
-            <div class="goto-item ${selected}" onclick="selectGoToItem(${idx})" data-index="${idx}">
-                <div class="goto-icon"><i class="fas ${item.icon}"></i></div>
-                <div class="goto-info">
-                    <div class="goto-name">${item.label}</div>
-                    <div class="goto-shortcode">Shortcode: ${item.shortcode}</div>
-                </div>
-                <div class="goto-kbd">${item.shortcode}</div>
+            <div class="goto-menu-item ${selected}" onclick="selectGoToItem(${idx})" data-index="${idx}">
+                <i class="fas ${item.icon}"></i>
+                <span>${item.label}</span>
+                <span class="shortcode">${item.shortcode}</span>
             </div>
         `;
     });
@@ -1557,7 +1680,7 @@ function renderGoToResults() {
     results.innerHTML = html;
     
     // Scroll selected into view
-    const selectedEl = results.querySelector('.goto-item.selected');
+    const selectedEl = results.querySelector('.goto-menu-item.selected');
     if (selectedEl) selectedEl.scrollIntoView({ block: 'nearest' });
 }
 
@@ -1565,7 +1688,7 @@ function selectGoToItem(index) {
     const item = gotoFilteredItems[index];
     if (!item) return;
     
-    closeGoToModal();
+    closeGoToMenu();
     
     // Navigate to the tab
     const urlParams = new URLSearchParams(window.location.search);
@@ -1583,7 +1706,7 @@ function selectGoToItem(index) {
 document.addEventListener('keydown', function(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
         e.preventDefault();
-        openGoToModal();
+        toggleGoToMenu();
     }
 });
 
@@ -1642,27 +1765,31 @@ function openPatient(patientId) {
     window.location.href = 'patient-chart.php?id=' + patientId;
 }
 
-// Close patient tab
+// Close patient tab - use form post to PHP handler to avoid API proxy issues
 function closePatientTab(patientId) {
-    fetch('api/close-patient-tab.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: patientId })
-    }).then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // If we're on that patient's chart, go home
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('id') == patientId) {
-                window.location.href = 'home.php';
-            } else {
-                window.location.reload();
-            }
-        }
-    }).catch(() => {
-        // Fallback: reload page
-        window.location.reload();
-    });
+    // Create a form to submit
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'includes/close-patient-tab-handler.php';
+    form.style.display = 'none';
+    
+    const idInput = document.createElement('input');
+    idInput.type = 'hidden';
+    idInput.name = 'patient_id';
+    idInput.value = patientId;
+    form.appendChild(idInput);
+    
+    // Add return URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnInput = document.createElement('input');
+    returnInput.type = 'hidden';
+    returnInput.name = 'return_url';
+    // If we're on that patient's chart, go home; otherwise reload current page
+    returnInput.value = urlParams.get('id') == patientId ? 'home.php' : window.location.href;
+    form.appendChild(returnInput);
+    
+    document.body.appendChild(form);
+    form.submit();
 }
 
 // Close modal on escape
@@ -1670,6 +1797,7 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         hidePatientSearch();
         closeMoreMenu();
+        closeGoToMenu();
     }
 });
 
