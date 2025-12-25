@@ -13,10 +13,10 @@ $patientId = isset($_POST['patient_id']) ? (int)$_POST['patient_id'] : null;
 $returnUrl = isset($_POST['return_url']) ? $_POST['return_url'] : '/home.php';
 
 // Validate return URL to prevent open redirect
-$allowedPrefixes = ['home.php', 'patient-chart.php', 'patients.php', 'inbox.php', 'profile.php', 'settings.php', 'admin.php', 'notes.php', 'patient-lists.php'];
+$allowedPrefixes = ['/home.php', '/patient-chart.php', '/patients.php', '/inbox.php', '/profile.php', '/settings.php', '/admin.php', '/notes.php', '/patient-lists.php', 'home.php', 'patient-chart.php'];
 $validReturn = false;
 foreach ($allowedPrefixes as $prefix) {
-    if (strpos($returnUrl, $prefix) === 0 || strpos($returnUrl, '/' . $prefix) !== false) {
+    if (strpos($returnUrl, $prefix) === 0) {
         $validReturn = true;
         break;
     }
@@ -24,6 +24,11 @@ foreach ($allowedPrefixes as $prefix) {
 
 if (!$validReturn) {
     $returnUrl = '/home.php';
+}
+
+// Ensure absolute path
+if ($returnUrl[0] !== '/' && strpos($returnUrl, 'http') !== 0) {
+    $returnUrl = '/' . $returnUrl;
 }
 
 if ($patientId) {
