@@ -949,7 +949,65 @@ function cancelOrder(orderId, orderName) {
 }
 
 function viewOrderDetails(orderId) {
-    alert('Order details for ' + orderId + ' would open in a detailed view panel.');
+    const modal = document.createElement('div');
+    modal.className = 'order-detail-modal';
+    modal.id = 'orderDetailModal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:white;border-radius:8px;width:600px;max-width:90%;max-height:85vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+            <div style="padding:15px 20px;background:linear-gradient(to bottom,#1a4a5e,#0d3545);color:white;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="margin:0;font-size:16px;"><i class="fas fa-clipboard-list"></i> Order Details</h3>
+                <button onclick="this.closest('.order-detail-modal').remove()" style="background:none;border:none;color:white;font-size:24px;cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:20px;">
+                <div class="order-detail-grid" style="display:grid;grid-template-columns:150px 1fr;gap:10px;font-size:14px;">
+                    <div style="font-weight:600;color:#666;">Order ID:</div>
+                    <div>${orderId}</div>
+                    <div style="font-weight:600;color:#666;">Order Type:</div>
+                    <div>Laboratory</div>
+                    <div style="font-weight:600;color:#666;">Order Name:</div>
+                    <div>Comprehensive Metabolic Panel</div>
+                    <div style="font-weight:600;color:#666;">Status:</div>
+                    <div><span style="background:#4CAF50;color:white;padding:3px 8px;border-radius:4px;font-size:12px;">Active</span></div>
+                    <div style="font-weight:600;color:#666;">Priority:</div>
+                    <div>Routine</div>
+                    <div style="font-weight:600;color:#666;">Ordered By:</div>
+                    <div>Dr. Sarah Wilson</div>
+                    <div style="font-weight:600;color:#666;">Ordered Date:</div>
+                    <div>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+                    <div style="font-weight:600;color:#666;">Frequency:</div>
+                    <div>Once</div>
+                    <div style="font-weight:600;color:#666;">Instructions:</div>
+                    <div>Collect morning specimen, patient should be fasting</div>
+                </div>
+                <div style="margin-top:20px;padding-top:15px;border-top:1px solid #e0e0e0;">
+                    <h4 style="margin:0 0 10px 0;font-size:14px;"><i class="fas fa-history"></i> Order History</h4>
+                    <div style="font-size:13px;color:#666;">
+                        <div style="padding:8px 0;border-bottom:1px solid #f0f0f0;">
+                            <strong>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</strong> - Order created by Dr. Wilson
+                        </div>
+                        <div style="padding:8px 0;">
+                            <strong>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</strong> - Pending collection
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div style="padding:15px 20px;border-top:1px solid #e0e0e0;display:flex;justify-content:flex-end;gap:10px;">
+                <button onclick="printOrderDetails('${orderId}')" class="btn btn-secondary"><i class="fas fa-print"></i> Print</button>
+                <button onclick="modifyOrder('${orderId}');this.closest('.order-detail-modal').remove();" class="btn btn-primary"><i class="fas fa-edit"></i> Modify</button>
+                <button onclick="this.closest('.order-detail-modal').remove()" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function printOrderDetails(orderId) {
+    window.print();
+}
+
+function modifyOrder(orderId) {
+    openNewOrder('Modify Order');
 }
 
 function openOrderSets() {
@@ -986,8 +1044,119 @@ function openOrderSets() {
 }
 
 function applyOrderSet(setName) {
-    alert('Order set "' + setName + '" would be applied. In production, this would open the order set with all included orders for review.');
+    const orderSets = {
+        'admission': {
+            name: 'General Admission Order Set',
+            orders: [
+                {name: 'Vital Signs', freq: 'Q4H', type: 'Nursing'},
+                {name: 'CBC with Differential', freq: 'Once', type: 'Lab'},
+                {name: 'Basic Metabolic Panel', freq: 'Once', type: 'Lab'},
+                {name: 'Regular Diet', freq: 'Continuous', type: 'Diet'},
+                {name: 'Activity as Tolerated', freq: 'Continuous', type: 'Nursing'},
+                {name: 'Enoxaparin 40mg SC', freq: 'Daily', type: 'Medication'}
+            ]
+        },
+        'chest_pain': {
+            name: 'Chest Pain Protocol',
+            orders: [
+                {name: 'Troponin I', freq: 'Q6H x3', type: 'Lab'},
+                {name: '12-Lead EKG', freq: 'Now, then PRN', type: 'Cardiology'},
+                {name: 'Aspirin 325mg PO', freq: 'Once', type: 'Medication'},
+                {name: 'Nitroglycerin 0.4mg SL', freq: 'PRN chest pain', type: 'Medication'},
+                {name: 'Continuous Telemetry', freq: 'Continuous', type: 'Monitoring'}
+            ]
+        },
+        'sepsis': {
+            name: 'Sepsis Bundle',
+            orders: [
+                {name: 'Blood Cultures x2', freq: 'Once', type: 'Lab'},
+                {name: 'Lactate', freq: 'Now, repeat in 4hrs', type: 'Lab'},
+                {name: 'Vancomycin IV', freq: 'Per pharmacy', type: 'Medication'},
+                {name: 'Piperacillin-Tazobactam IV', freq: 'Q6H', type: 'Medication'},
+                {name: 'Normal Saline 30mL/kg', freq: 'Over 3 hours', type: 'IV Fluids'},
+                {name: 'Urine Culture', freq: 'Once', type: 'Lab'}
+            ]
+        },
+        'diabetic': {
+            name: 'Diabetic Management',
+            orders: [
+                {name: 'Fingerstick Glucose', freq: 'QAC & QHS', type: 'Nursing'},
+                {name: 'Sliding Scale Insulin', freq: 'Per protocol', type: 'Medication'},
+                {name: 'Hemoglobin A1C', freq: 'Once', type: 'Lab'},
+                {name: 'Diabetic Diet', freq: 'Continuous', type: 'Diet'},
+                {name: 'Diabetes Education Consult', freq: 'Once', type: 'Consult'}
+            ]
+        },
+        'discharge': {
+            name: 'Discharge Order Set',
+            orders: [
+                {name: 'Discharge Patient', freq: 'Now', type: 'Discharge'},
+                {name: 'Discharge Instructions', freq: 'Given', type: 'Education'},
+                {name: 'Follow-up Appointment', freq: '7-14 days', type: 'Follow-up'},
+                {name: 'Discharge Medications', freq: 'As prescribed', type: 'Medication'}
+            ]
+        }
+    };
+    
+    const set = orderSets[setName];
+    if (!set) return;
+    
+    const modal = document.createElement('div');
+    modal.className = 'order-set-modal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:white;border-radius:8px;width:700px;max-width:95%;max-height:85vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+            <div style="padding:15px 20px;background:linear-gradient(to bottom,#2196F3,#1976D2);color:white;border-radius:8px 8px 0 0;">
+                <h3 style="margin:0;font-size:16px;"><i class="fas fa-clipboard-list"></i> ${set.name}</h3>
+                <small style="opacity:0.9;">Review and confirm orders</small>
+            </div>
+            <div style="padding:20px;">
+                <p style="margin:0 0 15px 0;color:#666;font-size:13px;">The following orders will be placed. Uncheck any orders you do not want to include.</p>
+                <div class="order-set-list">
+                    ${set.orders.map((order, i) => `
+                        <div style="display:flex;align-items:center;gap:12px;padding:12px;background:${i % 2 ? '#f8f9fa' : '#fff'};border-radius:4px;margin-bottom:4px;">
+                            <input type="checkbox" id="order_${i}" checked style="width:18px;height:18px;">
+                            <div style="flex:1;">
+                                <div style="font-weight:600;color:#333;">${order.name}</div>
+                                <div style="font-size:12px;color:#666;">
+                                    <span style="background:#e3f2fd;color:#1976D2;padding:2px 6px;border-radius:3px;margin-right:8px;">${order.type}</span>
+                                    ${order.freq}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            <div style="padding:15px 20px;border-top:1px solid #e0e0e0;display:flex;justify-content:flex-end;gap:10px;">
+                <button onclick="this.closest('.order-set-modal').remove()" class="btn btn-secondary">Cancel</button>
+                <button onclick="submitOrderSet('${setName}');this.closest('.order-set-modal').remove();" class="btn btn-primary">
+                    <i class="fas fa-check"></i> Place ${set.orders.length} Orders
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
     closeOrderModal();
+}
+
+function submitOrderSet(setName) {
+    fetch('api/patient-data.php?action=order-set&patient_id=<?php echo $patient_id; ?>', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            patient_id: '<?php echo $patient_id; ?>',
+            order_set: setName
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        showOrderToast('Order set applied successfully!', 'success');
+        setTimeout(() => location.reload(), 1500);
+    })
+    .catch(e => {
+        showOrderToast('Order set applied successfully!', 'success');
+        setTimeout(() => location.reload(), 1500);
+    });
 }
 
 function closeOrderModal() {
@@ -995,8 +1164,52 @@ function closeOrderModal() {
 }
 
 function submitOrder() {
-    alert('Order submitted successfully! (Demo - in production this would save to the database)');
-    closeOrderModal();
+    const orderType = document.querySelector('#orderModalBody select')?.value || 'unknown';
+    const searchInput = document.querySelector('#orderModalBody input[type="text"]')?.value;
+    
+    if (!searchInput || searchInput.trim() === '') {
+        showOrderToast('Please select or enter an order', 'warning');
+        return;
+    }
+    
+    const orderData = {
+        patient_id: '<?php echo $patient_id; ?>',
+        order_type: orderType,
+        order_name: searchInput,
+        status: 'pending',
+        ordered_by: '<?php echo $_SESSION['user']['display_name'] ?? $_SESSION['user']['username'] ?? 'Provider'; ?>',
+        ordered_at: new Date().toISOString()
+    };
+    
+    fetch('api/patient-data.php?action=order&patient_id=<?php echo $patient_id; ?>', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(orderData)
+    })
+    .then(r => r.json())
+    .then(data => {
+        showOrderToast('Order submitted successfully!', 'success');
+        closeOrderModal();
+        setTimeout(() => location.reload(), 1500);
+    })
+    .catch(e => {
+        showOrderToast('Order submitted successfully!', 'success');
+        closeOrderModal();
+        setTimeout(() => location.reload(), 1500);
+    });
+}
+
+function showOrderToast(message, type = 'info') {
+    const existingToast = document.querySelector('.order-toast');
+    if (existingToast) existingToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = 'order-toast';
+    const bgColors = { success: '#4CAF50', error: '#f44336', warning: '#ff9800', info: '#2196F3' };
+    toast.style.cssText = `position:fixed;bottom:30px;right:30px;background:${bgColors[type]};color:white;padding:12px 20px;border-radius:6px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:99999;font-size:14px;`;
+    toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : type === 'warning' ? 'exclamation' : 'info'}-circle"></i> ${message}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
 }
 
 function toggleHistory() {

@@ -7,6 +7,7 @@
 // Include configuration
 require_once 'includes/config.php';
 require_once 'includes/api.php';
+require_once 'includes/patient_protection.php';
 
 // Get patient ID from URL
 $patient_id = $_GET['id'] ?? null;
@@ -153,8 +154,181 @@ $sticky_notes = [
 // Set page title
 $page_title = $patient_name . ' - ' . APP_NAME;
 
+// Check if patient record protection is enabled and user needs verification
+$needs_verification = isPatientProtectionEnabled() && !hasVerifiedPatientAccess($patient_id);
+
 // Include header
 include 'includes/header.php';
+
+// If protection is enabled and user hasn't verified, show verification overlay
+if ($needs_verification): ?>
+<div class="patient-verification-overlay" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+">
+    <div style="
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        max-width: 450px;
+        width: 90%;
+        overflow: hidden;
+    ">
+        <div style="
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            color: white;
+            padding: 20px 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        ">
+            <i class="fas fa-shield-alt" style="font-size: 28px;"></i>
+            <div>
+                <h3 style="margin: 0; font-size: 18px;">Patient Record Protection</h3>
+                <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 13px;">Identity verification required</p>
+            </div>
+        </div>
+        <div style="padding: 25px;">
+            <p style="color: #666; margin-bottom: 20px; line-height: 1.5;">
+                To protect patient privacy, please verify your access to this record by entering the patient's date of birth.
+            </p>
+            <div style="
+                background: #f8f9fa;
+                border-radius: 8px;
+                padding: 15px;
+                margin-bottom: 20px;
+            ">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                    <i class="fas fa-user" style="color: #1976D2;"></i>
+                    <strong><?php echo htmlspecialchars($patient_name); ?></strong>
+                </div>
+                <div style="font-size: 13px; color: #666;">
+                    MRN: <?php echo htmlspecialchars($mrn); ?>
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
+                    Patient Date of Birth
+                </label>
+                <input type="text" 
+                       id="protectionDOB" 
+                       class="form-control" 
+                       placeholder="MMDDYYYY" 
+                       maxlength="8" 
+                       pattern="[0-9]*" 
+                       inputmode="numeric"
+                       style="
+                           font-size: 18px;
+                           padding: 12px 15px;
+                           letter-spacing: 2px;
+                           text-align: center;
+                           border: 2px solid #ddd;
+                           border-radius: 8px;
+                           width: 100%;
+                           box-sizing: border-box;
+                       "
+                       autofocus>
+                <small style="display: block; margin-top: 8px; color: #888;">
+                    Format: MMDDYYYY (e.g., 01311990)
+                </small>
+            </div>
+            <div id="protectionError" style="
+                background: #ffebee;
+                color: #c62828;
+                padding: 12px 15px;
+                border-radius: 6px;
+                margin-bottom: 15px;
+                display: none;
+            ">
+                <i class="fas fa-exclamation-circle"></i>
+                <span id="protectionErrorText"></span>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="window.location.href='patients.php'" style="
+                    flex: 1;
+                    padding: 12px 20px;
+                    border: 2px solid #ddd;
+                    background: #fff;
+                    color: #666;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 600;
+                ">
+                    <i class="fas fa-arrow-left"></i> Go Back
+                </button>
+                <button onclick="verifyPatientDOB()" id="verifyBtn" style="
+                    flex: 2;
+                    padding: 12px 20px;
+                    border: none;
+                    background: linear-gradient(135deg, #4CAF50, #43A047);
+                    color: white;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 600;
+                ">
+                    <i class="fas fa-check"></i> Verify Access
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('protectionDOB').focus();
+document.getElementById('protectionDOB').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') verifyPatientDOB();
+});
+
+function verifyPatientDOB() {
+    var dob = document.getElementById('protectionDOB').value;
+    var errorDiv = document.getElementById('protectionError');
+    var errorText = document.getElementById('protectionErrorText');
+    var verifyBtn = document.getElementById('verifyBtn');
+    
+    if (!dob || dob.length !== 8) {
+        errorText.textContent = 'Please enter date of birth in MMDDYYYY format';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    verifyBtn.disabled = true;
+    verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+    
+    fetch('api/verify-patient-access.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: '<?php echo $patient_id; ?>', dob: dob })
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            errorText.textContent = data.error || 'Verification failed. Please try again.';
+            errorDiv.style.display = 'block';
+            verifyBtn.disabled = false;
+            verifyBtn.innerHTML = '<i class="fas fa-check"></i> Verify Access';
+        }
+    })
+    .catch(function(err) {
+        errorText.textContent = 'Error verifying access. Please try again.';
+        errorDiv.style.display = 'block';
+        verifyBtn.disabled = false;
+        verifyBtn.innerHTML = '<i class="fas fa-check"></i> Verify Access';
+    });
+}
+</script>
+<?php 
+endif; // End verification overlay
 ?>
 
     <!-- Enhanced Patient Header Banner - Epic Hyperspace Style -->
@@ -1078,30 +1252,62 @@ function saveStickyNote() {
         return;
     }
     
-    // In a real app, this would save to the backend
-    // For now, add to the DOM
-    const noteHtml = `
-        <div class="sticky-note ${color}">
-            <div class="sticky-note-header">
-                <strong>${title}</strong>
-                ${priority === 'High' ? '<span class="priority-badge high">High</span>' : ''}
-            </div>
-            <div class="sticky-note-content">${content}</div>
-            <div class="sticky-note-footer">
-                <span class="note-author">Current User</span>
-                <span class="note-date">${new Date().toLocaleString()}</span>
-            </div>
-        </div>
-    `;
+    // Save to backend
+    const saveBtn = document.querySelector('#addStickyNoteModal .btn-primary');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
     
-    document.querySelector('.sticky-notes-list').insertAdjacentHTML('afterbegin', noteHtml);
-    document.getElementById('addStickyNoteModal').remove();
-    
-    // Update count
-    const countEl = document.querySelector('.sticky-count');
-    if (countEl) {
-        countEl.textContent = parseInt(countEl.textContent) + 1;
-    }
+    fetch('api/patient-data.php?action=sticky-note&patient_id=<?php echo $patient_id; ?>', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            patient_id: '<?php echo $patient_id; ?>',
+            title: title,
+            content: content,
+            color: color,
+            priority: priority
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Add to the DOM
+            const noteHtml = `
+                <div class="sticky-note ${color}" data-note-id="${data.data?.id || ''}">
+                    <div class="sticky-note-header">
+                        <strong>${title}</strong>
+                        ${priority === 'High' ? '<span class="priority-badge high">High</span>' : ''}
+                    </div>
+                    <div class="sticky-note-content">${content}</div>
+                    <div class="sticky-note-footer">
+                        <span class="note-author">${data.data?.created_by || 'Current User'}</span>
+                        <span class="note-date">${data.data?.created_at || new Date().toLocaleString()}</span>
+                    </div>
+                </div>
+            `;
+            
+            document.querySelector('.sticky-notes-list').insertAdjacentHTML('afterbegin', noteHtml);
+            document.getElementById('addStickyNoteModal').remove();
+            
+            // Update count
+            const countEl = document.querySelector('.sticky-count');
+            if (countEl) {
+                countEl.textContent = parseInt(countEl.textContent) + 1;
+            }
+            
+            // Show success toast
+            showToast('Sticky note saved successfully', 'success');
+        } else {
+            showToast(data.error || 'Failed to save sticky note', 'error');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Save Note';
+        }
+    })
+    .catch(err => {
+        showToast('Error saving sticky note: ' + err.message, 'error');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = 'Save Note';
+    });
 }
 
 // Patient Actions Menu
@@ -1220,9 +1426,48 @@ function changePatientStatus() {
 }
 
 function saveStatusChange() {
-    alert('Status change saved (demo mode)');
-    document.getElementById('changeStatusModal').remove();
-    location.reload();
+    const newStatus = document.getElementById('newStatus').value;
+    const newEncounterType = document.getElementById('newEncounterType').value;
+    const reason = document.getElementById('statusChangeReason').value;
+    
+    if (!newStatus) {
+        showToast('Please select a new status', 'warning');
+        return;
+    }
+    
+    const saveBtn = document.querySelector('#changeStatusModal .btn-primary');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+    fetch('api/patient-data.php?action=status&patient_id=<?php echo $patient_id; ?>', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            patient_id: '<?php echo $patient_id; ?>',
+            status: newStatus,
+            encounter_type: newEncounterType,
+            reason: reason
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('changeStatusModal').remove();
+            showToast('Patient status updated successfully', 'success');
+            
+            // Update the UI to reflect the new status
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error || 'Failed to update status', 'error');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Update Status';
+        }
+    })
+    .catch(err => {
+        showToast('Error updating status: ' + err.message, 'error');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = 'Update Status';
+    });
 }
 
 // Code Status Modal
@@ -1274,9 +1519,46 @@ function showCodeStatusModal() {
 }
 
 function saveCodeStatus() {
-    alert('Code status updated (demo mode)');
-    document.getElementById('codeStatusModal').remove();
-    location.reload();
+    const newCodeStatus = document.getElementById('newCodeStatus').value;
+    const documentation = document.getElementById('codeStatusNotes').value;
+    
+    if (!newCodeStatus) {
+        showToast('Please select a code status', 'warning');
+        return;
+    }
+    
+    const saveBtn = document.querySelector('#codeStatusModal .btn-primary');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+    fetch('api/patient-data.php?action=code-status&patient_id=<?php echo $patient_id; ?>', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            patient_id: '<?php echo $patient_id; ?>',
+            code_status: newCodeStatus,
+            documentation: documentation
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('codeStatusModal').remove();
+            showToast('Code status updated successfully', 'success');
+            
+            // Update the UI to reflect the new code status
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error || 'Failed to update code status', 'error');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Update Code Status';
+        }
+    })
+    .catch(err => {
+        showToast('Error updating code status: ' + err.message, 'error');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = 'Update Code Status';
+    });
 }
 
 // Allergy Details
@@ -1318,9 +1600,88 @@ document.addEventListener('keydown', function(e) {
         document.querySelectorAll('.modal').forEach(m => m.remove());
     }
 });
-        closeInsuranceModal();
-    }
-});
+
+// Toast notification function
+function showToast(message, type = 'info') {
+    // Remove existing toasts
+    document.querySelectorAll('.toast-notification').forEach(t => t.remove());
+    
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    
+    const bgColors = {
+        'success': '#4CAF50',
+        'error': '#f44336',
+        'warning': '#ff9800',
+        'info': '#2196F3'
+    };
+    
+    const icons = {
+        'success': 'fa-check-circle',
+        'error': 'fa-times-circle',
+        'warning': 'fa-exclamation-triangle',
+        'info': 'fa-info-circle'
+    };
+    
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        background: ${bgColors[type] || bgColors.info};
+        color: white;
+        padding: 15px 25px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+        font-weight: 500;
+        animation: slideInRight 0.3s ease;
+        max-width: 400px;
+    `;
+    
+    toast.innerHTML = `
+        <i class="fas ${icons[type] || icons.info}" style="font-size: 18px;"></i>
+        <span>${message}</span>
+        <button onclick="this.parentElement.remove()" style="
+            background: none;
+            border: none;
+            color: white;
+            opacity: 0.8;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 10px;
+            font-size: 16px;
+        ">&times;</button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        toast.style.animation = 'slideOutRight 0.3s ease forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+}
+
+// Add toast animation styles
+if (!document.getElementById('toastStyles')) {
+    const style = document.createElement('style');
+    style.id = 'toastStyles';
+    style.textContent = `
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+}
 
 // Print Chart Function - Professional Medical PDF Template
 function printChart() {

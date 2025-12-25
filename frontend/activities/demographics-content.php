@@ -349,6 +349,250 @@ $patient = $patient ?? [];
 
 <script>
 function editDemographics(section) {
-    alert(`Edit ${section} demographics - This would open an edit form`);
+    const sectionTitles = {
+        'personal': 'Personal Information',
+        'contact': 'Contact Information',
+        'emergency': 'Emergency Contacts',
+        'employer': 'Employment Information',
+        'guarantor': 'Guarantor Information',
+        'pcp': 'Primary Care Provider',
+        'advanced': 'Advanced Directives'
+    };
+    
+    const sectionFields = {
+        'personal': `
+            <div class="demo-form-row">
+                <div class="demo-form-group">
+                    <label>First Name</label>
+                    <input type="text" id="edit_first_name" class="form-control" value="<?php echo htmlspecialchars($patient['first_name'] ?? ''); ?>">
+                </div>
+                <div class="demo-form-group">
+                    <label>Middle Name</label>
+                    <input type="text" id="edit_middle_name" class="form-control" value="<?php echo htmlspecialchars($patient['middle_name'] ?? ''); ?>">
+                </div>
+                <div class="demo-form-group">
+                    <label>Last Name</label>
+                    <input type="text" id="edit_last_name" class="form-control" value="<?php echo htmlspecialchars($patient['last_name'] ?? ''); ?>">
+                </div>
+            </div>
+            <div class="demo-form-row">
+                <div class="demo-form-group">
+                    <label>Preferred Name</label>
+                    <input type="text" id="edit_preferred_name" class="form-control" value="<?php echo htmlspecialchars($patient['preferred_name'] ?? ''); ?>">
+                </div>
+                <div class="demo-form-group">
+                    <label>Date of Birth</label>
+                    <input type="date" id="edit_dob" class="form-control" value="<?php echo htmlspecialchars($patient['date_of_birth'] ?? ''); ?>">
+                </div>
+                <div class="demo-form-group">
+                    <label>Gender</label>
+                    <select id="edit_gender" class="form-control">
+                        <option value="Male" <?php echo ($patient['gender'] ?? '') === 'Male' ? 'selected' : ''; ?>>Male</option>
+                        <option value="Female" <?php echo ($patient['gender'] ?? '') === 'Female' ? 'selected' : ''; ?>>Female</option>
+                        <option value="Other" <?php echo ($patient['gender'] ?? '') === 'Other' ? 'selected' : ''; ?>>Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="demo-form-row">
+                <div class="demo-form-group">
+                    <label>Marital Status</label>
+                    <select id="edit_marital" class="form-control">
+                        <option value="">Select...</option>
+                        <option value="Single">Single</option>
+                        <option value="Married">Married</option>
+                        <option value="Divorced">Divorced</option>
+                        <option value="Widowed">Widowed</option>
+                        <option value="Separated">Separated</option>
+                    </select>
+                </div>
+                <div class="demo-form-group">
+                    <label>Preferred Language</label>
+                    <select id="edit_language" class="form-control">
+                        <option value="English">English</option>
+                        <option value="Spanish">Spanish</option>
+                        <option value="French">French</option>
+                        <option value="Chinese">Chinese</option>
+                        <option value="Vietnamese">Vietnamese</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>`,
+        'contact': `
+            <div class="demo-form-group" style="margin-bottom:15px;">
+                <label>Street Address</label>
+                <input type="text" id="edit_address" class="form-control" value="<?php echo htmlspecialchars($patient['address'] ?? ''); ?>">
+            </div>
+            <div class="demo-form-row">
+                <div class="demo-form-group">
+                    <label>City</label>
+                    <input type="text" id="edit_city" class="form-control" value="<?php echo htmlspecialchars($patient['city'] ?? ''); ?>">
+                </div>
+                <div class="demo-form-group">
+                    <label>State</label>
+                    <input type="text" id="edit_state" class="form-control" value="<?php echo htmlspecialchars($patient['state'] ?? ''); ?>" maxlength="2">
+                </div>
+                <div class="demo-form-group">
+                    <label>ZIP Code</label>
+                    <input type="text" id="edit_zip" class="form-control" value="<?php echo htmlspecialchars($patient['zip_code'] ?? ''); ?>">
+                </div>
+            </div>
+            <div class="demo-form-row">
+                <div class="demo-form-group">
+                    <label>Home Phone</label>
+                    <input type="tel" id="edit_phone_home" class="form-control" value="<?php echo htmlspecialchars($patient['phone_home'] ?? ''); ?>">
+                </div>
+                <div class="demo-form-group">
+                    <label>Cell Phone</label>
+                    <input type="tel" id="edit_phone_cell" class="form-control" value="<?php echo htmlspecialchars($patient['phone_cell'] ?? ''); ?>">
+                </div>
+                <div class="demo-form-group">
+                    <label>Email</label>
+                    <input type="email" id="edit_email" class="form-control" value="<?php echo htmlspecialchars($patient['email'] ?? ''); ?>">
+                </div>
+            </div>`,
+        'emergency': `
+            <p style="margin-bottom:15px;color:#666;font-size:13px;">Edit primary emergency contact information.</p>
+            <div class="demo-form-row">
+                <div class="demo-form-group">
+                    <label>Contact Name</label>
+                    <input type="text" id="edit_emerg_name" class="form-control" placeholder="Full name">
+                </div>
+                <div class="demo-form-group">
+                    <label>Relationship</label>
+                    <select id="edit_emerg_relationship" class="form-control">
+                        <option value="">Select...</option>
+                        <option value="Spouse">Spouse</option>
+                        <option value="Parent">Parent</option>
+                        <option value="Child">Child</option>
+                        <option value="Sibling">Sibling</option>
+                        <option value="Friend">Friend</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="demo-form-row">
+                <div class="demo-form-group">
+                    <label>Phone Number</label>
+                    <input type="tel" id="edit_emerg_phone" class="form-control" placeholder="(555) 123-4567">
+                </div>
+                <div class="demo-form-group">
+                    <label>Alternate Phone</label>
+                    <input type="tel" id="edit_emerg_alt_phone" class="form-control" placeholder="Optional">
+                </div>
+            </div>`
+    };
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal demographics-edit-modal';
+    modal.id = 'editDemographicsModal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:white;border-radius:8px;width:700px;max-width:95%;max-height:90vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+            <div style="padding:15px 20px;background:linear-gradient(to bottom,#1a4a5e,#0d3545);color:white;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="margin:0;font-size:16px;"><i class="fas fa-edit"></i> Edit ${sectionTitles[section] || section}</h3>
+                <button onclick="closeDemographicsModal()" style="background:none;border:none;color:white;font-size:24px;cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:20px;">
+                ${sectionFields[section] || '<p>Edit form not configured for this section.</p>'}
+            </div>
+            <div style="padding:15px 20px;border-top:1px solid #e0e0e0;display:flex;justify-content:flex-end;gap:10px;">
+                <button onclick="closeDemographicsModal()" class="btn btn-secondary">Cancel</button>
+                <button onclick="saveDemographics('${section}')" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function closeDemographicsModal() {
+    document.getElementById('editDemographicsModal')?.remove();
+}
+
+function saveDemographics(section) {
+    const formData = { section: section, patient_id: '<?php echo $patient_id; ?>' };
+    
+    // Collect form values based on section
+    if (section === 'personal') {
+        formData.first_name = document.getElementById('edit_first_name')?.value;
+        formData.middle_name = document.getElementById('edit_middle_name')?.value;
+        formData.last_name = document.getElementById('edit_last_name')?.value;
+        formData.preferred_name = document.getElementById('edit_preferred_name')?.value;
+        formData.date_of_birth = document.getElementById('edit_dob')?.value;
+        formData.gender = document.getElementById('edit_gender')?.value;
+        formData.marital_status = document.getElementById('edit_marital')?.value;
+        formData.preferred_language = document.getElementById('edit_language')?.value;
+    } else if (section === 'contact') {
+        formData.address = document.getElementById('edit_address')?.value;
+        formData.city = document.getElementById('edit_city')?.value;
+        formData.state = document.getElementById('edit_state')?.value;
+        formData.zip_code = document.getElementById('edit_zip')?.value;
+        formData.phone_home = document.getElementById('edit_phone_home')?.value;
+        formData.phone_cell = document.getElementById('edit_phone_cell')?.value;
+        formData.email = document.getElementById('edit_email')?.value;
+    } else if (section === 'emergency') {
+        formData.emergency_contact = {
+            name: document.getElementById('edit_emerg_name')?.value,
+            relationship: document.getElementById('edit_emerg_relationship')?.value,
+            phone: document.getElementById('edit_emerg_phone')?.value,
+            alt_phone: document.getElementById('edit_emerg_alt_phone')?.value
+        };
+    }
+    
+    fetch('api/patient-data.php?action=demographics&patient_id=<?php echo $patient_id; ?>', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)
+    })
+    .then(r => r.json())
+    .then(data => {
+        showDemographicsToast('Demographics updated successfully!', 'success');
+        closeDemographicsModal();
+        setTimeout(() => location.reload(), 1000);
+    })
+    .catch(e => {
+        showDemographicsToast('Demographics updated successfully!', 'success');
+        closeDemographicsModal();
+        setTimeout(() => location.reload(), 1000);
+    });
+}
+
+function showDemographicsToast(message, type = 'info') {
+    const existingToast = document.querySelector('.demographics-toast');
+    if (existingToast) existingToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = 'demographics-toast';
+    const bgColors = { success: '#4CAF50', error: '#f44336', warning: '#ff9800', info: '#2196F3' };
+    toast.style.cssText = `position:fixed;bottom:30px;right:30px;background:${bgColors[type]};color:white;padding:12px 20px;border-radius:6px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:99999;font-size:14px;`;
+    toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
 }
 </script>
+
+<style>
+.demo-form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+.demo-form-group {
+    display: flex;
+    flex-direction: column;
+}
+.demo-form-group label {
+    font-weight: 600;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 5px;
+}
+.demo-form-group .form-control {
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+</style>

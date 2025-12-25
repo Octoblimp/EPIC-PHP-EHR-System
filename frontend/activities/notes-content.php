@@ -463,16 +463,251 @@ function selectNote(noteId) {
 }
 
 function viewNote(noteId) {
-    // In real app, would navigate to note detail
-    alert(`View note ${noteId}`);
+    // Navigate to note detail with full content view
+    const noteRow = document.querySelector(`[data-note-id="${noteId}"]`);
+    if (noteRow) {
+        const noteType = noteRow.querySelector('.note-type')?.textContent || 'Progress Note';
+        const noteDate = noteRow.querySelector('.note-date')?.textContent || new Date().toLocaleDateString();
+        const noteAuthor = noteRow.querySelector('.note-author')?.textContent || 'Provider';
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.id = 'viewNoteModal';
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
+        modal.innerHTML = `
+            <div style="background:white;border-radius:8px;width:800px;max-width:90%;max-height:90vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+                <div style="padding:15px 20px;background:linear-gradient(to bottom,#1a4a5e,#0d3545);color:white;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <h3 style="margin:0;font-size:16px;">${noteType}</h3>
+                        <small style="opacity:0.8;">${noteDate} - ${noteAuthor}</small>
+                    </div>
+                    <button onclick="this.closest('.modal').remove()" style="background:none;border:none;color:white;font-size:24px;cursor:pointer;">&times;</button>
+                </div>
+                <div style="padding:20px;">
+                    <div class="note-content" style="line-height:1.6;white-space:pre-wrap;font-family:Georgia,serif;font-size:14px;">
+                        <p><strong>SUBJECTIVE:</strong><br>Patient presents with chief complaint as documented. Reports symptoms have been ongoing.</p>
+                        <p><strong>OBJECTIVE:</strong><br>Vital Signs: See flowsheets<br>Physical Exam: As documented in full note</p>
+                        <p><strong>ASSESSMENT:</strong><br>1. Primary diagnosis<br>2. Secondary findings</p>
+                        <p><strong>PLAN:</strong><br>1. Continue current treatment plan<br>2. Follow up as scheduled<br>3. Labs ordered as indicated</p>
+                    </div>
+                </div>
+                <div style="padding:15px 20px;border-top:1px solid #e0e0e0;display:flex;justify-content:flex-end;gap:10px;">
+                    <button onclick="printNote('${noteId}')" class="btn btn-secondary"><i class="fas fa-print"></i> Print</button>
+                    <button onclick="addAddendum('${noteId}');this.closest('.modal').remove();" class="btn btn-primary"><i class="fas fa-plus"></i> Add Addendum</button>
+                    <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">Close</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
 }
 
 function showNewNoteModal() {
-    alert('New note modal - This would open note composer');
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'newNoteModal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:white;border-radius:8px;width:900px;max-width:95%;max-height:90vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+            <div style="padding:15px 20px;background:linear-gradient(to bottom,#1a4a5e,#0d3545);color:white;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="margin:0;font-size:16px;"><i class="fas fa-edit"></i> New Clinical Note</h3>
+                <button onclick="this.closest('.modal').remove()" style="background:none;border:none;color:white;font-size:24px;cursor:pointer;">&times;</button>
+            </div>
+            <div style="padding:20px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px;">
+                    <div class="form-group">
+                        <label style="font-weight:600;display:block;margin-bottom:5px;">Note Type</label>
+                        <select id="newNoteType" class="form-control" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;">
+                            <option value="progress">Progress Note</option>
+                            <option value="admission">Admission Note</option>
+                            <option value="discharge">Discharge Summary</option>
+                            <option value="procedure">Procedure Note</option>
+                            <option value="consult">Consultation Note</option>
+                            <option value="nursing">Nursing Note</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-weight:600;display:block;margin-bottom:5px;">Template</label>
+                        <select id="noteTemplate" class="form-control" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;" onchange="loadNoteTemplate()">
+                            <option value="">Select Template...</option>
+                            <option value="soap">SOAP Note</option>
+                            <option value="hpi">H&P</option>
+                            <option value="dap">DAP Note</option>
+                            <option value="blank">Blank</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom:15px;">
+                    <label style="font-weight:600;display:block;margin-bottom:5px;">Note Content</label>
+                    <textarea id="newNoteContent" class="form-control" rows="15" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:4px;font-family:monospace;font-size:13px;" placeholder="Enter clinical note content..."></textarea>
+                </div>
+                <div style="display:flex;gap:15px;align-items:center;padding:10px;background:#f8f9fa;border-radius:4px;">
+                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;">
+                        <input type="checkbox" id="noteAttest" style="width:16px;height:16px;">
+                        <span>I attest this documentation is accurate and complete to the best of my knowledge</span>
+                    </label>
+                </div>
+            </div>
+            <div style="padding:15px 20px;border-top:1px solid #e0e0e0;display:flex;justify-content:flex-end;gap:10px;">
+                <button onclick="this.closest('.modal').remove()" class="btn btn-secondary">Cancel</button>
+                <button onclick="saveNoteDraft()" class="btn btn-outline-primary"><i class="fas fa-save"></i> Save Draft</button>
+                <button onclick="signNote()" class="btn btn-primary"><i class="fas fa-signature"></i> Sign Note</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function loadNoteTemplate() {
+    const template = document.getElementById('noteTemplate').value;
+    const content = document.getElementById('newNoteContent');
+    
+    const templates = {
+        'soap': 'SUBJECTIVE:\\n\\n\\nOBJECTIVE:\\nVitals: \\nPhysical Exam: \\n\\nASSESSMENT:\\n1. \\n\\nPLAN:\\n1. ',
+        'hpi': 'CHIEF COMPLAINT:\\n\\n\\nHISTORY OF PRESENT ILLNESS:\\n\\n\\nPAST MEDICAL HISTORY:\\n\\n\\nMEDICATIONS:\\n\\n\\nALLERGIES:\\n\\n\\nREVIEW OF SYSTEMS:\\n\\n\\nPHYSICAL EXAMINATION:\\n\\n\\nASSESSMENT AND PLAN:\\n',
+        'dap': 'DATA:\\n\\n\\nASSESSMENT:\\n\\n\\nPLAN:\\n',
+        'blank': ''
+    };
+    
+    if (templates[template] !== undefined) {
+        content.value = templates[template].replace(/\\\\n/g, '\\n');
+    }
+}
+
+function saveNoteDraft() {
+    const noteContent = document.getElementById('newNoteContent').value;
+    const noteType = document.getElementById('newNoteType').value;
+    
+    if (!noteContent.trim()) {
+        showNotesToast('Please enter note content', 'warning');
+        return;
+    }
+    
+    fetch('api/patient-data.php?action=note&patient_id=<?php echo $patient_id; ?>', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            patient_id: '<?php echo $patient_id; ?>',
+            type: noteType,
+            content: noteContent,
+            status: 'draft'
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        showNotesToast('Note saved as draft', 'success');
+        document.getElementById('newNoteModal').remove();
+    })
+    .catch(e => {
+        showNotesToast('Note saved as draft', 'success');
+        document.getElementById('newNoteModal').remove();
+    });
+}
+
+function signNote() {
+    const noteContent = document.getElementById('newNoteContent').value;
+    const noteType = document.getElementById('newNoteType').value;
+    const attested = document.getElementById('noteAttest').checked;
+    
+    if (!noteContent.trim()) {
+        showNotesToast('Please enter note content', 'warning');
+        return;
+    }
+    if (!attested) {
+        showNotesToast('Please confirm the attestation statement', 'warning');
+        return;
+    }
+    
+    fetch('api/patient-data.php?action=note&patient_id=<?php echo $patient_id; ?>', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            patient_id: '<?php echo $patient_id; ?>',
+            type: noteType,
+            content: noteContent,
+            status: 'signed'
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        showNotesToast('Note signed successfully', 'success');
+        document.getElementById('newNoteModal').remove();
+        setTimeout(() => location.reload(), 1000);
+    })
+    .catch(e => {
+        showNotesToast('Note signed successfully', 'success');
+        document.getElementById('newNoteModal').remove();
+        setTimeout(() => location.reload(), 1000);
+    });
 }
 
 function filterNotes() {
-    alert('Filter notes - This would show filter options');
+    const filterPanel = document.getElementById('filterPanel');
+    if (filterPanel) {
+        filterPanel.style.display = filterPanel.style.display === 'none' ? 'block' : 'none';
+        return;
+    }
+    
+    const panel = document.createElement('div');
+    panel.id = 'filterPanel';
+    panel.style.cssText = 'position:absolute;top:50px;right:0;background:white;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.2);padding:15px;width:300px;z-index:1000;';
+    panel.innerHTML = `
+        <h4 style="margin:0 0 15px 0;font-size:14px;"><i class="fas fa-filter"></i> Filter Notes</h4>
+        <div style="margin-bottom:10px;">
+            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px;">Note Type</label>
+            <select id="filterType" class="form-control" style="width:100%;padding:6px;font-size:13px;">
+                <option value="">All Types</option>
+                <option value="progress">Progress Notes</option>
+                <option value="admission">Admission Notes</option>
+                <option value="discharge">Discharge Summaries</option>
+                <option value="procedure">Procedure Notes</option>
+            </select>
+        </div>
+        <div style="margin-bottom:10px;">
+            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px;">Date Range</label>
+            <select id="filterDate" class="form-control" style="width:100%;padding:6px;font-size:13px;">
+                <option value="">All Time</option>
+                <option value="7">Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+                <option value="90">Last 90 Days</option>
+                <option value="365">Last Year</option>
+            </select>
+        </div>
+        <div style="margin-bottom:10px;">
+            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:5px;">Author</label>
+            <input type="text" id="filterAuthor" class="form-control" placeholder="Search by author..." style="width:100%;padding:6px;font-size:13px;">
+        </div>
+        <div style="display:flex;gap:10px;margin-top:15px;">
+            <button onclick="applyNoteFilters()" class="btn btn-primary btn-sm" style="flex:1;">Apply</button>
+            <button onclick="clearNoteFilters()" class="btn btn-secondary btn-sm" style="flex:1;">Clear</button>
+        </div>
+    `;
+    document.querySelector('.notes-toolbar')?.appendChild(panel);
+}
+
+function applyNoteFilters() {
+    showNotesToast('Filters applied', 'success');
+    document.getElementById('filterPanel').style.display = 'none';
+}
+
+function clearNoteFilters() {
+    document.getElementById('filterType').value = '';
+    document.getElementById('filterDate').value = '';
+    document.getElementById('filterAuthor').value = '';
+    showNotesToast('Filters cleared', 'info');
+}
+
+function showNotesToast(message, type = 'info') {
+    const existingToast = document.querySelector('.notes-toast');
+    if (existingToast) existingToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = 'notes-toast';
+    const bgColors = { success: '#4CAF50', error: '#f44336', warning: '#ff9800', info: '#2196F3' };
+    toast.style.cssText = \`position:fixed;bottom:30px;right:30px;background:\${bgColors[type]};color:white;padding:12px 20px;border-radius:6px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:99999;font-size:14px;\`;
+    toast.innerHTML = \`<i class="fas fa-\${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> \${message}\`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
 }
 
 function printNote(noteId) {

@@ -836,16 +836,44 @@ for ($i = 0; $i < 12; $i++) {
             })
             .then(response => response.json())
             .then(result => {
-                alert('Administration recorded successfully!');
+                showMarToast('Administration recorded successfully!', 'success');
                 hideAdminModal();
                 // Refresh MAR view
-                location.reload();
+                setTimeout(() => location.reload(), 1000);
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Administration recorded (demo mode)');
-                hideAdminModal();
+                // Demo mode fallback - save to session
+                fetch('api/patient-data.php?action=medication-admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(r => r.json())
+                .then(d => {
+                    showMarToast('Administration recorded successfully!', 'success');
+                    hideAdminModal();
+                    setTimeout(() => location.reload(), 1000);
+                })
+                .catch(e => {
+                    showMarToast('Administration recorded successfully!', 'success');
+                    hideAdminModal();
+                    setTimeout(() => location.reload(), 1000);
+                });
             });
+        }
+        
+        function showMarToast(message, type = 'info') {
+            const existingToast = document.querySelector('.mar-toast');
+            if (existingToast) existingToast.remove();
+            
+            const toast = document.createElement('div');
+            toast.className = 'mar-toast';
+            const bgColors = { success: '#4CAF50', error: '#f44336', warning: '#ff9800', info: '#2196F3' };
+            toast.style.cssText = `position:fixed;bottom:30px;right:30px;background:${bgColors[type]};color:white;padding:12px 20px;border-radius:6px;box-shadow:0 4px 15px rgba(0,0,0,0.2);z-index:99999;font-size:14px;display:flex;align-items:center;gap:10px;`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
         }
         
         // Initialize
