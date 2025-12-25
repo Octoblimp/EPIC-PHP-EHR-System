@@ -3,7 +3,7 @@ User Model - System users and authentication
 SECURITY: Uses Argon2id for password hashing (HIPAA-compliant)
 """
 from datetime import datetime
-from models import db
+from . import db
 import argon2
 from argon2 import PasswordHasher, exceptions as argon2_exceptions
 

@@ -119,7 +119,7 @@ class Claim(db.Model):
     billing_account_id = db.Column(db.Integer, db.ForeignKey('billing_accounts.id'), nullable=False)
     
     # Insurance
-    insurance_id = db.Column(db.Integer, db.ForeignKey('patient_insurance.id'), nullable=False)
+    insurance_id = db.Column(db.Integer, db.ForeignKey('insurance_coverages.id'), nullable=False)
     payer_id = db.Column(db.String(20))
     payer_name = db.Column(db.String(200))
     

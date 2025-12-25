@@ -96,6 +96,53 @@ class Department(db.Model):
         }
 
 
+class Facility(db.Model):
+    """Healthcare facility/location (hospital campus, clinic building, etc.)"""
+    __tablename__ = 'facilities'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    short_name = db.Column(db.String(50))
+    facility_type = db.Column(db.String(50))  # hospital, clinic, urgent_care, surgery_center, etc.
+    
+    # Location
+    address = db.Column(db.String(500))
+    city = db.Column(db.String(100))
+    state = db.Column(db.String(50))
+    zip_code = db.Column(db.String(20))
+    
+    # Contact
+    phone = db.Column(db.String(30))
+    fax = db.Column(db.String(30))
+    
+    # Identifiers
+    facility_code = db.Column(db.String(20), unique=True)
+    npi = db.Column(db.String(20))
+    
+    # Operations
+    is_24_hour = db.Column(db.Boolean, default=False)
+    operating_hours = db.Column(db.Text)  # JSON for hours per day
+    
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'organization_id': self.organization_id,
+            'name': self.name,
+            'short_name': self.short_name,
+            'facility_type': self.facility_type,
+            'address': self.address,
+            'city': self.city,
+            'state': self.state,
+            'zip_code': self.zip_code,
+            'phone': self.phone,
+            'is_active': self.is_active
+        }
+
+
 class Bed(db.Model):
     """Hospital bed"""
     __tablename__ = 'beds'

@@ -2,7 +2,7 @@
 Order Model - Clinical orders (labs, imaging, procedures, etc.)
 """
 from datetime import datetime
-from models import db
+from . import db
 
 class Order(db.Model):
     """Clinical orders"""

@@ -2,7 +2,7 @@
 Encounter Model - Patient visits, admissions, and sticky notes
 """
 from datetime import datetime
-from models import db
+from . import db
 
 class Encounter(db.Model):
     """Patient encounter/visit information"""

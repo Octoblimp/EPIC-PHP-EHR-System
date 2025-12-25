@@ -1,14 +1,7 @@
 """
 Routes package initialization
+Individual blueprints are imported in app.py to avoid circular imports
 """
-from routes.patient_routes import patient_bp
-from routes.medication_routes import medication_bp
-from routes.order_routes import order_bp
-from routes.vital_routes import vital_bp
-from routes.flowsheet_routes import flowsheet_bp
-from routes.lab_routes import lab_bp
-from routes.note_routes import note_bp
-from routes.shortcode_routes import shortcode_bp
 
 __all__ = [
     'patient_bp',

@@ -2,7 +2,7 @@
 Vital Signs Model - Patient vital signs documentation
 """
 from datetime import datetime
-from models import db
+from . import db
 
 class Vital(db.Model):
     """Patient vital signs"""

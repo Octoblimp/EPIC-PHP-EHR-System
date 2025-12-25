@@ -2,7 +2,7 @@
 Lab Result Model - Laboratory results
 """
 from datetime import datetime
-from models import db
+from . import db
 
 class LabResult(db.Model):
     """Laboratory results"""

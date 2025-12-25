@@ -2,7 +2,7 @@
 Insurance Model - Patient insurance coverage and payer information
 """
 from datetime import datetime
-from models import db
+from . import db
 
 
 class InsurancePayer(db.Model):

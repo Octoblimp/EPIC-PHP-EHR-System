@@ -2,7 +2,7 @@
 Medication Model - Patient medications and orders
 """
 from datetime import datetime
-from models import db
+from . import db
 
 class Medication(db.Model):
     """Patient medications - both inpatient and outpatient"""

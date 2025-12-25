@@ -2,7 +2,7 @@
 Patient Model - Core patient demographics and information
 """
 from datetime import datetime
-from models import db
+from . import db
 
 class Patient(db.Model):
     """Patient demographics and core information"""

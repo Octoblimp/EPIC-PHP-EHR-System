@@ -2,7 +2,7 @@
 Flowsheet Model - Documentation flowsheets and entries
 """
 from datetime import datetime
-from models import db
+from . import db
 
 class FlowsheetTemplate(db.Model):
     """Flowsheet templates/definitions"""

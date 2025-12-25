@@ -6,9 +6,6 @@ from datetime import datetime, timedelta
 from . import db
 import secrets
 
-# Import the User model from user.py
-from .user import User
-
 
 class UserSession(db.Model):
     """Active user sessions for session management"""

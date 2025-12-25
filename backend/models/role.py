@@ -35,7 +35,7 @@ class Role(db.Model):
     
     # Relationships
     permissions = db.relationship('RolePermission', backref='role', lazy='dynamic', cascade='all, delete-orphan')
-    users = db.relationship('User', backref='role', lazy='dynamic')
+    # Note: Users reference role by string name, not foreign key
     
     def to_dict(self):
         return {

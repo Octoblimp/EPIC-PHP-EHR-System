@@ -2,7 +2,7 @@
 Note Model - Clinical documentation notes and addenda
 """
 from datetime import datetime
-from models import db
+from . import db
 
 class Note(db.Model):
     """Clinical notes"""
