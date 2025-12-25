@@ -2,6 +2,9 @@
 /**
  * Openspace EHR - Patient Chart
  * Main patient chart view with Epic Hyperspace-style navigation
+ * 
+ * SECURITY NOTE: All user inputs are validated and sanitized.
+ * Patient ID is validated as a positive integer to prevent injection attacks.
  */
 
 // Include configuration
@@ -9,9 +12,13 @@ require_once 'includes/config.php';
 require_once 'includes/api.php';
 require_once 'includes/patient_protection.php';
 
-// Get patient ID from URL
-$patient_id = $_GET['id'] ?? null;
-$current_tab = $_GET['tab'] ?? 'summary';
+// Get and VALIDATE patient ID from URL (SECURITY: Prevent SQL injection)
+$raw_patient_id = $_GET['id'] ?? null;
+$patient_id = InputValidator::validatePatientId($raw_patient_id);
+$current_tab = InputValidator::sanitizeString($_GET['tab'] ?? 'summary');
+
+// Track if tab is valid (will be checked when loading content)
+$tab_error = false;
 
 if (!$patient_id) {
     header('Location: patients.php');
@@ -252,7 +259,7 @@ if ($needs_verification): ?>
                 <span id="protectionErrorText"></span>
             </div>
             <div style="display: flex; gap: 10px;">
-                <button onclick="window.location.href='patients.php'" style="
+                <button onclick="cancelPatientAccess()" style="
                     flex: 1;
                     padding: 12px 20px;
                     border: 2px solid #ddd;
@@ -288,6 +295,21 @@ document.getElementById('protectionDOB').addEventListener('keypress', function(e
     if (e.key === 'Enter') verifyPatientDOB();
 });
 
+function cancelPatientAccess() {
+    // Close the patient tab before redirecting
+    fetch('api/proxy.php?endpoint=close-patient-tab', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: '<?php echo $patient_id; ?>' })
+    })
+    .then(function() {
+        window.location.href = 'patients.php';
+    })
+    .catch(function() {
+        window.location.href = 'patients.php';
+    });
+}
+
 function verifyPatientDOB() {
     var dob = document.getElementById('protectionDOB').value;
     var errorDiv = document.getElementById('protectionError');
@@ -303,7 +325,7 @@ function verifyPatientDOB() {
     verifyBtn.disabled = true;
     verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
     
-    fetch('api/verify-patient-access.php', {
+    fetch('api/proxy.php?endpoint=verify-patient-access', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patient_id: '<?php echo $patient_id; ?>', dob: dob })
@@ -358,7 +380,11 @@ endif; // End verification overlay
                 </div>
                 <div class="patient-identifiers">
                     <span class="identifier"><label>MRN:</label> <?php echo htmlspecialchars($mrn); ?></span>
+                    <?php if (!$needs_verification): ?>
                     <span class="identifier"><label>DOB:</label> <?php echo formatDate($patient['date_of_birth'] ?? ''); ?></span>
+                    <?php else: ?>
+                    <span class="identifier"><label>DOB:</label> <span style="color:#888;">••/••/••••</span></span>
+                    <?php endif; ?>
                     <span class="identifier"><label>SSN:</label> xxx-xx-<?php echo htmlspecialchars($patient['ssn_last_four'] ?? '****'); ?></span>
                 </div>
                 <!-- Encounter Info Row -->
@@ -618,7 +644,32 @@ endif; // End verification overlay
                     include 'activities/insurance-content.php';
                     break;
                 default:
-                    include 'activities/summary-content.php';
+                    // Show error for invalid/unknown tabs instead of redirecting
+                    ?>
+                    <div class="content-panel" style="margin: 20px;">
+                        <div class="panel-header" style="background: linear-gradient(to bottom, #d04040, #a03030);">
+                            <span><i class="fas fa-exclamation-triangle"></i> Page Not Available</span>
+                        </div>
+                        <div class="panel-content" style="padding: 40px; text-align: center;">
+                            <div style="font-size: 64px; color: #d04040; margin-bottom: 20px;">
+                                <i class="fas fa-ban"></i>
+                            </div>
+                            <h2 style="color: #333; margin-bottom: 10px;">This page does not exist or you do not have permission to access it.</h2>
+                            <p style="color: #666; margin-bottom: 30px;">
+                                The requested activity "<strong><?php echo htmlspecialchars($current_tab); ?></strong>" could not be found.<br>
+                                Please select a valid activity from the sidebar or contact your system administrator if you believe this is an error.
+                            </p>
+                            <div style="display: flex; gap: 10px; justify-content: center;">
+                                <a href="patient-chart.php?id=<?php echo $patient_id; ?>&tab=summary" class="btn btn-primary">
+                                    <i class="fas fa-home"></i> Go to Summary
+                                </a>
+                                <a href="patients.php" class="btn btn-secondary">
+                                    <i class="fas fa-users"></i> Patient List
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <?php
                     break;
             }
             ?>

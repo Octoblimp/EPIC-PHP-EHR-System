@@ -1,9 +1,21 @@
 """
 User Model - System users and authentication
+SECURITY: Uses Argon2id for password hashing (HIPAA-compliant)
 """
 from datetime import datetime
 from models import db
-from werkzeug.security import generate_password_hash, check_password_hash
+import argon2
+from argon2 import PasswordHasher, exceptions as argon2_exceptions
+
+# Configure Argon2id hasher with secure parameters
+ph = PasswordHasher(
+    time_cost=4,        # Number of iterations
+    memory_cost=65536,  # 64 MB memory
+    parallelism=3,      # 3 parallel threads
+    hash_len=32,        # Output hash length
+    salt_len=16,        # Salt length
+    type=argon2.Type.ID # Argon2id (hybrid of Argon2i and Argon2d)
+)
 
 class User(db.Model):
     """System users"""
@@ -42,10 +54,30 @@ class User(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        """Hash password using Argon2id"""
+        self.password_hash = ph.hash(password)
     
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        """Verify password against Argon2id hash"""
+        try:
+            ph.verify(self.password_hash, password)
+            
+            # Check if rehash is needed (parameters changed)
+            if ph.check_needs_rehash(self.password_hash):
+                self.password_hash = ph.hash(password)
+                # Note: Caller should commit the session to save the new hash
+            
+            return True
+        except argon2_exceptions.VerifyMismatchError:
+            return False
+        except argon2_exceptions.InvalidHash:
+            # Handle legacy bcrypt hashes during migration
+            from werkzeug.security import check_password_hash
+            if check_password_hash(self.password_hash, password):
+                # Upgrade to Argon2id
+                self.password_hash = ph.hash(password)
+                return True
+            return False
     
     def get_full_name(self):
         title = f", {self.title}" if self.title else ""

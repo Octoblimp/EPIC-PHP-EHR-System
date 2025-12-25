@@ -417,6 +417,81 @@ $migrations = [
         ",
         'status' => 'pending'
     ],
+    [
+        'version' => '2.3.0',
+        'name' => 'HIPAA Security - Argon2id Passwords',
+        'date' => '2024-12-25',
+        'description' => 'Upgrade password hashing from bcrypt to Argon2id for enhanced security',
+        'sql' => "
+            -- No SQL changes needed - password upgrade happens on next login
+            -- Users with old bcrypt hashes will have their passwords automatically
+            -- rehashed to Argon2id when they successfully authenticate
+            
+            -- Create migration audit record
+            INSERT INTO audit_logs (action, resource, details, timestamp)
+            VALUES ('SECURITY_UPGRADE', 'passwords', 'Migrated to Argon2id hashing', CURRENT_TIMESTAMP);
+        ",
+        'status' => 'pending'
+    ],
+    [
+        'version' => '2.4.0',
+        'name' => 'HIPAA Security - AES-256 Encryption',
+        'date' => '2024-12-25',
+        'description' => 'Encrypt all PII fields with AES-256-GCM for HIPAA compliance',
+        'sql' => "
+            -- Add encrypted flag columns to track migration status
+            ALTER TABLE patients ADD COLUMN pii_encrypted BOOLEAN DEFAULT 0;
+            ALTER TABLE users ADD COLUMN pii_encrypted BOOLEAN DEFAULT 0;
+            
+            -- Note: Actual encryption migration must be run via PHP script
+            -- See /admin/encrypt-pii.php for migration tool
+            
+            -- Create encryption metadata table
+            CREATE TABLE IF NOT EXISTS encryption_metadata (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                table_name VARCHAR(100) NOT NULL,
+                column_name VARCHAR(100) NOT NULL,
+                encryption_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                encryption_version VARCHAR(20) DEFAULT '1.0',
+                records_encrypted INTEGER DEFAULT 0
+            );
+        ",
+        'status' => 'pending'
+    ],
+    [
+        'version' => '2.5.0',
+        'name' => 'Session Security Enhancement',
+        'date' => '2024-12-25',
+        'description' => 'Add session fingerprinting and security tracking',
+        'sql' => "
+            CREATE TABLE IF NOT EXISTS user_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id VARCHAR(128) NOT NULL UNIQUE,
+                user_id INTEGER NOT NULL,
+                fingerprint VARCHAR(64),
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_activity DATETIME DEFAULT CURRENT_TIMESTAMP,
+                expires_at DATETIME,
+                is_active BOOLEAN DEFAULT 1,
+                terminated_reason VARCHAR(50)
+            );
+            
+            CREATE INDEX idx_sessions_user ON user_sessions(user_id, is_active);
+            CREATE INDEX idx_sessions_id ON user_sessions(session_id);
+            
+            -- Rate limiting table
+            CREATE TABLE IF NOT EXISTS rate_limits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                key VARCHAR(255) NOT NULL,
+                attempts INTEGER DEFAULT 1,
+                window_start DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(key)
+            );
+        ",
+        'status' => 'pending'
+    ],
 ];
 
 // Check migration status from file or database

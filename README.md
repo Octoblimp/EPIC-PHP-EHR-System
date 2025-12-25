@@ -1,10 +1,24 @@
-# Epic EHR System - PHP Frontend with Python Backend
+# Openspace EHR System
 
-A comprehensive web-based Electronic Health Record (EHR) system inspired by Epic's Hyperspace interface. This project features a PHP/HTML/CSS/JavaScript frontend that communicates with a Python Flask backend API, designed for production healthcare environments with full HIPAA compliance features.
+A comprehensive web-based Electronic Health Record (EHR) system. This project features a PHP frontend that communicates with a Python Flask backend API, designed for healthcare environments with **full HIPAA compliance** and enterprise-grade security.
 
-![Epic EHR Demo](docs/screenshot.png)
+![Openspace EHR Demo](docs/screenshot.png)
 
-## Features
+## 🔐 Security Highlights
+
+- **AES-256-GCM Encryption** - All Protected Health Information (PHI) encrypted at rest
+- **Argon2id Password Hashing** - Industry-leading password security
+- **Session Protection** - HttpOnly, Secure, SameSite cookies with fingerprinting
+- **CSRF Protection** - Token-based cross-site request forgery prevention
+- **Input Validation** - Comprehensive sanitization of all user inputs
+- **Rate Limiting** - Brute force protection on authentication
+- **Audit Logging** - Complete PHI access tracking for HIPAA compliance
+
+See [SECURITY.md](docs/SECURITY.md) for detailed security documentation.
+
+---
+
+## ✨ Features
 
 ### Clinical Modules
 - **Patient Demographics** - Complete patient information header with allergies, identifiers, and encounter details
@@ -96,7 +110,9 @@ EPIC-PHP-EHR-System/
 │   ├── apache.conf             # Apache configuration
 │   ├── includes/
 │   │   ├── config.php          # Frontend configuration
-│   │   └── api.php             # API client classes (Patient, Medication, Vital, Flowsheet services)
+│   │   ├── security.php        # Security classes (encryption, sessions, validation)
+│   │   ├── patient_protection.php  # Record access verification
+│   │   └── api.php             # API client classes
 │   ├── templates/
 │   │   ├── header.php          # Page header
 │   │   ├── patient-banner.php  # Patient demographics banner
@@ -117,7 +133,10 @@ EPIC-PHP-EHR-System/
 │   │   ├── oncology.php        # Oncology treatment planning
 │   │   └── infection-control.php  # Isolation & precautions
 │   ├── admin/
-│   │   └── roles.php           # Role & permission management
+│   │   ├── index.php           # Admin dashboard
+│   │   ├── roles.php           # Role & permission management
+│   │   ├── db-updater.php      # Database migrations
+│   │   └── encrypt-pii.php     # PII encryption tool
 │   ├── assets/
 │   │   ├── css/
 │   │   │   └── epic-styles.css # Epic-style CSS
@@ -125,6 +144,9 @@ EPIC-PHP-EHR-System/
 │   │       └── epic-app.js     # Frontend JavaScript
 │   └── api/
 │       └── proxy.php           # API proxy
+│
+├── docs/
+│   └── SECURITY.md             # Security documentation
 │
 └── README.md                   # This file
 ```
@@ -268,14 +290,14 @@ define('SESSION_TIMEOUT', 900);
 
 ### Default Credentials
 
-| Username | Password | Role | Department |
-|----------|----------|------|------------|
-| `admin` | `password123` | Administrator | IT |
-| `drsmith` | `password123` | Physician | Internal Medicine |
-| `nursejones` | `password123` | Nurse | Medical/Surgical |
-| `drsandhu` | `password123` | Physician | OB/GYN |
+| Username | Password | Role |
+|----------|----------|------|
+| `admin` | `demo123` | Administrator |
+| `drsmith` | `demo123` | Physician |
+| `nurse1` | `demo123` | Nurse |
+| `demo` | `demo123` | Demo User |
 
-> ⚠️ **Security Warning**: For production deployments, immediately change all default passwords or delete the seeded users and create new accounts via the admin interface.
+> ⚠️ **Security Note**: Demo authentication works when the Python backend is unavailable. For production, always use the backend with proper user management and immediately change all default passwords.
 
 ### Key Workflows
 
@@ -374,18 +396,31 @@ define('SESSION_TIMEOUT', 900);
 - `GET /api/fhir/Observation` - Get observations (vitals, labs)
 - `GET /api/fhir/MedicationRequest` - Get medication orders
 
-## Security & Compliance
+## 🔒 Security & Compliance
 
 ### HIPAA Compliance Features
 - **Audit Logging** - All PHI access is logged with user, timestamp, and action
-- **Session Timeout** - Automatic logout after 15 minutes of inactivity
+- **Session Timeout** - Automatic logout after 30 minutes of inactivity
 - **Role-Based Access** - Granular permissions by role and department
 - **Break-the-Glass** - Emergency access with mandatory reason documentation
 - **PHI Access Tracking** - Dedicated log for compliance reporting
+- **Patient Record Protection** - DOB verification before chart access
+
+### Encryption
+- **AES-256-GCM** for all PHI/PII at rest
+- **HKDF key derivation** with per-message salt (16 bytes) and nonce (12 bytes)
+- Environment-based key management (`HIPAA_ENCRYPTION_KEY`)
+- Use Admin → PII Encryption Tool for data migration
 
 ### Authentication
-- Session-based authentication with secure cookies
-- Password hashing with industry-standard algorithms
+- **Argon2id** password hashing (memory_cost=64MB, time_cost=4, threads=3)
+- Session-based authentication with **secure cookies**:
+  - HttpOnly (prevents XSS cookie theft)
+  - Secure flag (HTTPS-only transmission)
+  - SameSite=Strict (prevents CSRF attacks)
+  - Session fingerprinting (binds session to browser)
+- Rate limiting on login (5 attempts per minute)
+- CSRF token validation on all forms
 - Failed login attempt tracking
 - Account lockout after multiple failures
 

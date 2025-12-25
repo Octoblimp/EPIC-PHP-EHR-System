@@ -1,7 +1,11 @@
 <?php
 /**
  * Configuration file for Openspace EHR Frontend
+ * HIPAA-compliant security configuration
  */
+
+// Include security module first
+require_once __DIR__ . '/security.php';
 
 // API Configuration
 // Use localhost to bypass Cloudflare when PHP makes internal API calls
@@ -18,10 +22,12 @@ define('APP_VERSION', '1.0.0');
 // Asset paths
 define('ASSETS_PATH', 'assets');
 
-// Session Configuration
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// Initialize secure session
+SecureSession::init();
+SecureSession::start();
+
+// Send security headers for all pages
+SecurityHeaders::send();
 
 // Build user array from session if authenticated
 if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true) {

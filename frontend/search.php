@@ -403,11 +403,15 @@ function searchData(query, filter) {
         medications: []
     };
     
+    // Check for DOB pattern in query
+    const dobMatch = query.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/);
+    
     // Search patients
     if (filter === 'all' || filter === 'patients') {
         results.patients = demoData.patients.filter(p => 
             p.name.toLowerCase().includes(query) ||
-            p.mrn.toLowerCase().includes(query)
+            p.mrn.toLowerCase().includes(query) ||
+            (dobMatch && p.dob.includes(dobMatch[1]))
         );
     }
     
@@ -451,6 +455,12 @@ function searchData(query, filter) {
 function displayResults(results, query) {
     const totalCount = Object.values(results).reduce((sum, arr) => sum + arr.length, 0);
     
+    // Check if user searched by both name and DOB
+    const dobMatch = query.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/);
+    const hasNameInQuery = query.replace(dobMatch ? dobMatch[1] : '', '').trim().length > 2;
+    const searchedByNameAndDob = dobMatch && hasNameInQuery;
+    const showDob = !window.PATIENT_PROTECTION_ENABLED || searchedByNameAndDob;
+    
     if (totalCount === 0) {
         document.getElementById('searchResults').innerHTML = `
             <div class="no-results">
@@ -481,7 +491,7 @@ function displayResults(results, query) {
                         <div class="result-icon patient"><i class="fas fa-user"></i></div>
                         <div class="result-info">
                             <div class="result-title">${highlightMatch(p.name, query)}</div>
-                            <div class="result-subtitle">MRN: ${highlightMatch(p.mrn, query)}${window.PATIENT_PROTECTION_ENABLED ? '' : ` | DOB: ${p.dob}`}</div>
+                            <div class="result-subtitle">MRN: ${highlightMatch(p.mrn, query)}${showDob ? ' | DOB: ' + p.dob : ''}</div>
                         </div>
                         <div class="result-meta">Room: ${p.room}</div>
                     </div>

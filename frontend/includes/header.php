@@ -1220,6 +1220,9 @@ function hasNavPermission($permission) {
     <?php if (function_exists('renderPatientVerificationModal')) echo renderPatientVerificationModal(); ?>
 
 <script>
+// Patient protection status
+const patientProtectionEnabled = <?php echo (isset($_SESSION['system_settings']['patient_record_protection']) && ($_SESSION['system_settings']['patient_record_protection'] === true || $_SESSION['system_settings']['patient_record_protection'] === 'true')) ? 'true' : 'false'; ?>;
+
 // Demo patients for search (in production, this would be an API call)
 const demoPatients = [
     { id: 1, name: 'Smith, John', mrn: 'MRN000001', dob: '03/15/1955', room: '412-A' },
@@ -1730,22 +1733,34 @@ function hidePatientSearch() {
 
 function searchPatients(query) {
     const results = document.getElementById('patientSearchResults');
-    const filtered = demoPatients.filter(p => 
-        p.name.toLowerCase().includes(query.toLowerCase()) ||
-        p.mrn.toLowerCase().includes(query.toLowerCase())
-    );
+    const queryLower = query.toLowerCase();
+    
+    // Check if query includes DOB-like pattern for combined search
+    const dobMatch = query.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/);
+    const searchingByDob = dobMatch !== null;
+    
+    const filtered = demoPatients.filter(p => {
+        const nameMatch = p.name.toLowerCase().includes(queryLower);
+        const mrnMatch = p.mrn.toLowerCase().includes(queryLower);
+        const dobSearchMatch = searchingByDob && p.dob.includes(dobMatch[1]);
+        
+        return nameMatch || mrnMatch || dobSearchMatch;
+    });
     
     if (filtered.length === 0) {
         results.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">No patients found</div>';
         return;
     }
     
+    // Only show DOB if: 1) Protection is OFF, or 2) User searched by name AND DOB together
+    const showDob = !patientProtectionEnabled || (searchingByDob && query.length > 10);
+    
     results.innerHTML = filtered.map(p => `
         <div class="patient-search-item" onclick="addPatientTab(${p.id}, '${p.name}')">
             <div class="patient-icon"><i class="fas fa-user"></i></div>
             <div class="patient-info">
                 <strong>${p.name}</strong>
-                <span>${p.mrn} | DOB: ${p.dob} | Room: ${p.room}</span>
+                <span>${p.mrn}${showDob ? ' | DOB: ' + p.dob : ''} | Room: ${p.room}</span>
             </div>
         </div>
     `).join('');

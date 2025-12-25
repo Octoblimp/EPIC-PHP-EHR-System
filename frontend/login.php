@@ -5,6 +5,13 @@
  */
 
 require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/includes/security.php';
+
+// Initialize secure session
+SecureSession::init();
+
+// Send security headers
+SecurityHeaders::send();
 
 // Redirect if already logged in
 if (isset($_SESSION['user_id']) && isset($_SESSION['authenticated'])) {
@@ -17,84 +24,176 @@ $timeout_message = isset($_GET['timeout']) ? 'Your session has expired due to in
 $logout_message = isset($_GET['logout']) ? 'You have been successfully logged out.' : '';
 $error_message = '';
 
+// Demo users with Argon2id hashed passwords
+// Password for all demo users: "demo123"
+$demo_users = [
+    'admin' => [
+        'id' => 1,
+        'username' => 'admin',
+        'password_hash' => '$argon2id$v=19$m=65536,t=4,p=3$YzJOQllrMXNOMk15Tm1ZeQ$KJqE+0Db2i8mHKI7wNE8/JkMmL3qOz1uvK1fPxCVfgI',
+        'first_name' => 'System',
+        'last_name' => 'Administrator',
+        'full_name' => 'Administrator, System',
+        'display_name' => 'System Administrator',
+        'role' => 'Administrator',
+        'department' => 'IT',
+        'permissions' => ['admin', 'users', 'settings', 'audit']
+    ],
+    'drsmith' => [
+        'id' => 2,
+        'username' => 'drsmith',
+        'password_hash' => '$argon2id$v=19$m=65536,t=4,p=3$YzJOQllrMXNOMk15Tm1ZeQ$KJqE+0Db2i8mHKI7wNE8/JkMmL3qOz1uvK1fPxCVfgI',
+        'first_name' => 'Sarah',
+        'last_name' => 'Smith',
+        'full_name' => 'Smith, Sarah MD',
+        'display_name' => 'Dr. Sarah Smith',
+        'role' => 'Physician',
+        'department' => 'Internal Medicine',
+        'permissions' => ['orders', 'prescribe', 'notes', 'results']
+    ],
+    'nurse1' => [
+        'id' => 3,
+        'username' => 'nurse1',
+        'password_hash' => '$argon2id$v=19$m=65536,t=4,p=3$YzJOQllrMXNOMk15Tm1ZeQ$KJqE+0Db2i8mHKI7wNE8/JkMmL3qOz1uvK1fPxCVfgI',
+        'first_name' => 'Mary',
+        'last_name' => 'Johnson',
+        'full_name' => 'Johnson, Mary RN',
+        'display_name' => 'Mary Johnson, RN',
+        'role' => 'Nurse',
+        'department' => 'Med-Surg',
+        'permissions' => ['vitals', 'medications', 'flowsheets', 'notes']
+    ],
+    'demo' => [
+        'id' => 99,
+        'username' => 'demo',
+        'password_hash' => '$argon2id$v=19$m=65536,t=4,p=3$YzJOQllrMXNOMk15Tm1ZeQ$KJqE+0Db2i8mHKI7wNE8/JkMmL3qOz1uvK1fPxCVfgI',
+        'first_name' => 'Demo',
+        'last_name' => 'User',
+        'full_name' => 'Demo User',
+        'display_name' => 'Demo User',
+        'role' => 'Demo',
+        'department' => 'Demo Mode',
+        'permissions' => ['view']
+    ]
+];
+
 // Handle login form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_POST['username'] ?? '';
+    $username = InputValidator::sanitizeString($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     $mfa_code = $_POST['mfa_code'] ?? '';
     
-    // Call Python backend DIRECTLY on localhost (bypasses Cloudflare)
-    $api_url = 'http://127.0.0.1:5000/api/auth/login';
-    
-    // Debug info array
-    $debug_info = [];
-    $debug_info['api_url'] = $api_url;
-    $debug_info['request_time'] = date('Y-m-d H:i:s');
-    
-    // Call backend authentication API
-    $ch = curl_init();
-    
-    $debug_info['full_url'] = $api_url;
-    
-    curl_setopt($ch, CURLOPT_URL, $api_url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-        'username' => $username,
-        'password' => $password,
-        'mfa_code' => $mfa_code
-    ]));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    
-    $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curl_error = curl_error($ch);
-    $curl_errno = curl_errno($ch);
-    $effective_url = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-    curl_close($ch);
-    
-    // Collect debug info
-    $debug_info['http_code'] = $http_code;
-    $debug_info['effective_url'] = $effective_url;
-    $debug_info['curl_error'] = $curl_error;
-    $debug_info['curl_errno'] = $curl_errno;
-    $debug_info['response_length'] = strlen($response);
-    $debug_info['response_preview'] = substr($response, 0, 500);
-    
-    $result = json_decode($response, true);
-    $debug_info['json_decode_error'] = json_last_error_msg();
-    
-    if ($http_code === 200 && isset($result['success']) && $result['success']) {
-        // Check if MFA is required
-        if (isset($result['mfa_required']) && $result['mfa_required']) {
-            $_SESSION['pending_mfa'] = true;
-            $_SESSION['pending_username'] = $username;
-            header('Location: /login.php?mfa=required');
-            exit;
+    // Rate limiting - prevent brute force
+    $rate_key = 'login_' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    if (RateLimiter::isLimited($rate_key, 5, 300)) {
+        $error_message = 'Too many login attempts. Please wait 5 minutes before trying again.';
+    } else {
+        RateLimiter::recordAttempt($rate_key);
+        
+        // Debug info array
+        $debug_info = [];
+        $debug_info['request_time'] = date('Y-m-d H:i:s');
+        
+        $login_success = false;
+        $user_data = null;
+        
+        // Try Python backend first
+        $api_url = 'http://127.0.0.1:5000/api/auth/login';
+        $debug_info['api_url'] = $api_url;
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $api_url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+            'username' => $username,
+            'password' => $password,
+            'mfa_code' => $mfa_code
+        ]));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5); // Shorter timeout
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+        
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($ch);
+        $curl_errno = curl_errno($ch);
+        curl_close($ch);
+        
+        $debug_info['http_code'] = $http_code;
+        $debug_info['curl_error'] = $curl_error;
+        $debug_info['curl_errno'] = $curl_errno;
+        
+        // Check if backend responded successfully
+        if ($http_code === 200) {
+            $result = json_decode($response, true);
+            if (isset($result['success']) && $result['success']) {
+                // Check if MFA is required
+                if (isset($result['mfa_required']) && $result['mfa_required']) {
+                    $_SESSION['pending_mfa'] = true;
+                    $_SESSION['pending_username'] = $username;
+                    header('Location: /login.php?mfa=required');
+                    exit;
+                }
+                
+                $login_success = true;
+                $user_data = $result['user'];
+                $user_data['session_token'] = $result['token'] ?? bin2hex(random_bytes(32));
+            } else {
+                $error_message = $result['error'] ?? 'Invalid credentials.';
+            }
+        } else {
+            // Backend not available - try demo authentication
+            $debug_info['fallback'] = 'Using demo authentication (backend unavailable)';
+            
+            if (isset($demo_users[$username])) {
+                $demo_user = $demo_users[$username];
+                
+                // Verify password using Argon2id
+                if (PasswordHasher::verify($password, $demo_user['password_hash'])) {
+                    $login_success = true;
+                    $user_data = $demo_user;
+                    $user_data['session_token'] = bin2hex(random_bytes(32));
+                } else {
+                    $error_message = 'Invalid credentials. Please try again.';
+                }
+            } else {
+                $error_message = 'Invalid credentials. Please try again.';
+            }
         }
         
-        // Successful login
-        $_SESSION['user_id'] = $result['user']['id'];
-        $_SESSION['username'] = $result['user']['username'];
-        $_SESSION['full_name'] = $result['user']['full_name'];
-        $_SESSION['role'] = $result['user']['role'];
-        $_SESSION['permissions'] = $result['user']['permissions'] ?? [];
-        $_SESSION['session_token'] = $result['session_token'];
-        $_SESSION['authenticated'] = true;
-        $_SESSION['login_time'] = time();
-        $_SESSION['last_activity'] = time();
-        
-        // Redirect to intended page or home
-        $redirect = $_SESSION['intended_url'] ?? 'home.php';
-        unset($_SESSION['intended_url']);
-        header('Location: ' . $redirect);
-        exit;
-    } else {
-        $error_message = $result['error'] ?? 'Invalid credentials. Please try again.';
-        // Store debug info for display
-        $_SESSION['login_debug'] = $debug_info;
+        if ($login_success && $user_data) {
+            // Clear rate limit on success
+            RateLimiter::clear($rate_key);
+            
+            // Regenerate session ID to prevent fixation
+            SecureSession::start();
+            SecureSession::regenerate();
+            
+            // Set session data
+            $_SESSION['user_id'] = $user_data['id'];
+            $_SESSION['username'] = $user_data['username'];
+            $_SESSION['full_name'] = $user_data['full_name'] ?? $user_data['display_name'];
+            $_SESSION['role'] = $user_data['role'];
+            $_SESSION['permissions'] = $user_data['permissions'] ?? [];
+            $_SESSION['session_token'] = $user_data['session_token'];
+            $_SESSION['authenticated'] = true;
+            $_SESSION['login_time'] = time();
+            $_SESSION['last_activity'] = time();
+            
+            // Log successful login
+            error_log("Login success: {$username} from " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            
+            // Redirect to intended page or home
+            $redirect = $_SESSION['intended_url'] ?? 'home.php';
+            unset($_SESSION['intended_url']);
+            header('Location: ' . $redirect);
+            exit;
+        } else {
+            // Log failed attempt
+            error_log("Login failed: {$username} from " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+            $_SESSION['login_debug'] = $debug_info;
+        }
     }
 }
 

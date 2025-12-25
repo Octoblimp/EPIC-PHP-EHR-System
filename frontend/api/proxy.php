@@ -5,12 +5,30 @@
  * This allows the PHP frontend to communicate with the Python API
  */
 
+// Handle endpoint query parameter for local PHP API files
+if (isset($_GET['endpoint'])) {
+    $endpoint = $_GET['endpoint'];
+    $localEndpoints = [
+        'close-patient-tab' => 'close-patient-tab.php',
+        'add-patient-tab' => 'add-patient-tab.php',
+        'toggle-sidebar-favorite' => 'toggle-sidebar-favorite.php',
+        'update-sidebar-favorites' => 'update-sidebar-favorites.php',
+        'verify-patient-access' => 'verify-patient-access.php'
+    ];
+    
+    if (isset($localEndpoints[$endpoint])) {
+        require_once __DIR__ . '/' . $localEndpoints[$endpoint];
+        exit();
+    }
+}
+
 // List of local PHP API files that should NOT be proxied
 $localApiFiles = [
     'close-patient-tab.php',
     'add-patient-tab.php',
     'toggle-sidebar-favorite.php',
-    'update-sidebar-favorites.php'
+    'update-sidebar-favorites.php',
+    'verify-patient-access.php'
 ];
 
 // Check if request is for a local PHP file
