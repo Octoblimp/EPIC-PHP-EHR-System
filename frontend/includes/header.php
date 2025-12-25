@@ -1347,3 +1347,10 @@ document.getElementById('patientSearchModal')?.addEventListener('click', functio
 });
 </script>
 
+<?php
+// Include Quick Access / Command Palette
+if (file_exists(__DIR__ . '/quick-access.php')) {
+    include __DIR__ . '/quick-access.php';
+}
+?>
+

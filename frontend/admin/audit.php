@@ -185,12 +185,129 @@ include 'includes/admin-header.php';
         </div>
 
     <script>
+        // Store original data for filtering
+        const auditData = <?php echo json_encode($audit_logs); ?>;
+        const actionColors = <?php echo json_encode($action_colors); ?>;
+        
         function applyFilters() {
-            alert('Filters applied! (Demo - would filter audit log entries)');
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const userFilter = document.getElementById('userFilter').value.toLowerCase();
+            const actionFilter = document.getElementById('actionFilter').value.toUpperCase();
+            
+            const filtered = auditData.filter(log => {
+                const logDate = log.timestamp.split(' ')[0];
+                
+                // Date range filter
+                if (startDate && logDate < startDate) return false;
+                if (endDate && logDate > endDate) return false;
+                
+                // User filter
+                if (userFilter && log.user.toLowerCase() !== userFilter) return false;
+                
+                // Action filter
+                if (actionFilter && log.action !== actionFilter) return false;
+                
+                return true;
+            });
+            
+            renderTable(filtered);
+            updateStats(filtered);
+        }
+        
+        function renderTable(data) {
+            const tbody = document.querySelector('.audit-table tbody');
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#888;">No audit log entries match the selected filters.</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = data.map(log => {
+                const actionColor = actionColors[log.action] || '#6c757d';
+                return `
+                    <tr>
+                        <td><span class="timestamp">${log.timestamp}</span></td>
+                        <td><a href="users.php?user=${log.user}" class="user-link">${escapeHtml(log.user)}</a></td>
+                        <td>
+                            <span class="action-badge" style="background: ${actionColor}">
+                                ${escapeHtml(log.action)}
+                            </span>
+                        </td>
+                        <td>${escapeHtml(log.resource)}</td>
+                        <td>${escapeHtml(log.details)}</td>
+                        <td><span class="ip-address">${escapeHtml(log.ip)}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function updateStats(data) {
+            const stats = {
+                events: data.length,
+                users: [...new Set(data.map(d => d.user))].length,
+                patients: data.filter(d => d.resource === 'Patient Chart').length,
+                alerts: data.filter(d => d.action === 'DELETE' || d.details.toLowerCase().includes('failed')).length
+            };
+            
+            const cards = document.querySelectorAll('.stat-card .stat-value');
+            if (cards.length >= 4) {
+                cards[0].textContent = stats.events.toLocaleString();
+                cards[1].textContent = stats.users;
+                cards[2].textContent = stats.patients;
+                cards[3].textContent = stats.alerts;
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         function exportAuditLog() {
-            alert('Exporting audit log to CSV... (Demo)');
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const userFilter = document.getElementById('userFilter').value;
+            const actionFilter = document.getElementById('actionFilter').value;
+            
+            // Get currently displayed data
+            let dataToExport = auditData;
+            if (userFilter || actionFilter) {
+                dataToExport = auditData.filter(log => {
+                    if (userFilter && log.user.toLowerCase() !== userFilter.toLowerCase()) return false;
+                    if (actionFilter && log.action !== actionFilter) return false;
+                    return true;
+                });
+            }
+            
+            // Create CSV
+            const headers = ['Timestamp', 'User', 'Action', 'Resource', 'Details', 'IP Address'];
+            const rows = dataToExport.map(log => [
+                log.timestamp,
+                log.user,
+                log.action,
+                log.resource,
+                `"${log.details.replace(/"/g, '""')}"`,
+                log.ip
+            ].join(','));
+            
+            const csv = [headers.join(','), ...rows].join('\n');
+            
+            // Download
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `audit_log_${startDate}_to_${endDate}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
         }
+        
+        // Apply filters on input change for real-time filtering
+        document.getElementById('userFilter').addEventListener('change', applyFilters);
+        document.getElementById('actionFilter').addEventListener('change', applyFilters);
+        document.getElementById('startDate').addEventListener('change', applyFilters);
+        document.getElementById('endDate').addEventListener('change', applyFilters);
     </script>
 <?php include 'includes/admin-footer.php'; ?>

@@ -1,0 +1,20 @@
+{
+    "name": "Sample Extension",
+    "version": "1.0.0",
+    "author": "Openspace EHR Team",
+    "description": "A sample extension demonstrating the extension API",
+    "requires": {
+        "openspace": ">=1.0.0"
+    },
+    "hooks": [
+        "init",
+        "patient_loaded"
+    ],
+    "filters": [
+        "patient_name_display"
+    ],
+    "settings": {
+        "enabled": true,
+        "custom_option": "value"
+    }
+}
