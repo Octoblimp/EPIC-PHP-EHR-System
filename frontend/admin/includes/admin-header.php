@@ -23,6 +23,7 @@ $admin_sidebar_items = [
     'integrations' => ['icon' => 'fa-plug', 'label' => 'Integrations'],
     'audit' => ['icon' => 'fa-clipboard-list', 'label' => 'Audit Log'],
     'db-updater' => ['icon' => 'fa-database', 'label' => 'Database'],
+    'encrypt-pii' => ['icon' => 'fa-shield-alt', 'label' => 'Encryption'],
 ];
 ?>
 <!DOCTYPE html>
