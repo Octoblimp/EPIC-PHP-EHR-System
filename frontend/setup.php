@@ -24,9 +24,89 @@ function isSetupComplete() {
     return file_exists(SETUP_CONFIG_FILE);
 }
 
+// Check if database already has users (setup already ran or manual setup)
+function hasExistingData() {
+    // Try to check database for existing users
+    // This requires a working database connection from a previous partial setup or .env
+    $envFile = __DIR__ . '/.env';
+    if (!file_exists($envFile)) {
+        return false; // No config yet, allow setup
+    }
+    
+    // Parse .env file
+    $env = parse_ini_file($envFile);
+    if (!$env || empty($env['DB_HOST']) || empty($env['DB_NAME']) || empty($env['DB_USER'])) {
+        return false; // Invalid config, allow setup
+    }
+    
+    try {
+        $dsn = "mysql:host={$env['DB_HOST']};port=" . ($env['DB_PORT'] ?? '3306') . ";dbname={$env['DB_NAME']};charset=utf8mb4";
+        $pdo = new PDO($dsn, $env['DB_USER'], $env['DB_PASS'] ?? '', [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_TIMEOUT => 3
+        ]);
+        
+        // Check if users table exists and has data
+        $stmt = $pdo->query("SELECT COUNT(*) FROM users");
+        $count = $stmt->fetchColumn();
+        return $count > 0;
+    } catch (PDOException $e) {
+        return false; // Can't connect or table doesn't exist, allow setup
+    }
+}
+
 // If setup is complete, redirect to login
 if (isSetupComplete() && !isset($_GET['force'])) {
     header('Location: login.php');
+    exit;
+}
+
+// Block setup if database already has users
+if (hasExistingData() && !isset($_GET['force'])) {
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Setup Blocked - Openspace EHR</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <style>
+            body {
+                background: linear-gradient(135deg, #1a4a5e 0%, #0d3545 50%, #1a4a5e 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            }
+            .setup-container {
+                background: white;
+                border-radius: 16px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                max-width: 500px;
+                width: 100%;
+                padding: 40px;
+                text-align: center;
+            }
+            .block-icon { font-size: 60px; color: #dc3545; margin-bottom: 20px; }
+        </style>
+    </head>
+    <body>
+        <div class="setup-container">
+            <div class="block-icon"><i class="fas fa-shield-alt"></i></div>
+            <h3 class="mb-3">Setup Already Complete</h3>
+            <p class="text-muted mb-4">
+                The database already contains user accounts. Setup cannot be run again for security reasons.
+            </p>
+            <a href="login.php" class="btn btn-primary">
+                <i class="fas fa-sign-in-alt"></i> Go to Login
+            </a>
+        </div>
+    </body>
+    </html>
+    <?php
     exit;
 }
 
@@ -211,35 +291,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             chmod(ENV_FILE, 0600);
             
-            // Create admin user in database
+            // Create admin user in database (tables already exist from Python backend)
             try {
                 $dsn = "mysql:host={$db['host']};port={$db['port']};dbname={$db['name']};charset=utf8mb4";
                 $pdo = new PDO($dsn, $db['user'], $db['pass'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
                 
-                // Check if users table exists, if not create it
-                $pdo->exec("
-                    CREATE TABLE IF NOT EXISTS users (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        username VARCHAR(50) UNIQUE NOT NULL,
-                        email VARCHAR(255) UNIQUE NOT NULL,
-                        password_hash VARCHAR(255) NOT NULL,
-                        first_name VARCHAR(100),
-                        last_name VARCHAR(100),
-                        role VARCHAR(50) DEFAULT 'User',
-                        department VARCHAR(100),
-                        is_active BOOLEAN DEFAULT TRUE,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                        last_login TIMESTAMP NULL,
-                        failed_login_attempts INT DEFAULT 0,
-                        locked_until TIMESTAMP NULL
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-                ");
-                
-                // Insert admin user
+                // Insert admin user (table created by Python backend on startup)
                 $stmt = $pdo->prepare("
-                    INSERT INTO users (username, email, password_hash, first_name, last_name, role, department)
-                    VALUES (?, ?, ?, ?, ?, 'Administrator', 'Administration')
+                    INSERT INTO users (username, email, password_hash, first_name, last_name, role, department, is_active)
+                    VALUES (?, ?, ?, ?, ?, 'Administrator', 'Administration', 1)
                 ");
                 $stmt->execute([
                     $admin['username'],
@@ -275,10 +335,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 /**
  * Install sample/demo data by calling the Python backend API
- * This uses the comprehensive sample data from the backend
+ * Tables are already created by the Python backend on startup
  */
 function installSampleData($pdo) {
-    // First, try to call the Python backend API to seed comprehensive demo data
+    // Call the Python backend API to seed comprehensive demo data
+    // The backend has all the sample patients, vitals, meds, labs, notes, etc.
     $apiUrl = 'http://127.0.0.1:5000/api/admin/setup/seed-demo-data';
     
     $ch = curl_init($apiUrl);
@@ -293,77 +354,20 @@ function installSampleData($pdo) {
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlError = curl_error($ch);
     curl_close($ch);
     
-    // If backend API succeeded, we're done - it has comprehensive data
+    // Check if backend seeded the data
     if ($httpCode === 200) {
         $result = json_decode($response, true);
         if ($result['success'] ?? false) {
-            return true; // Backend seeded comprehensive demo data
+            return true;
         }
     }
     
-    // Fallback: If backend is not running, create minimal sample data via PHP/MySQL
-    // This ensures setup can complete even without the Python backend running
-    
-    // Sample patients (minimal fallback)
-    $patients = [
-        ['John', 'Smith', '1955-03-15', 'Male', 'MRN000001'],
-        ['Sarah', 'Johnson', '1978-08-22', 'Female', 'MRN000002'],
-        ['Michael', 'Williams', '1962-11-30', 'Male', 'MRN000003'],
-        ['Emily', 'Brown', '1990-05-12', 'Female', 'MRN000004'],
-        ['Robert', 'Davis', '1948-01-05', 'Male', 'MRN000005'],
-    ];
-    
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS patients (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            first_name VARCHAR(100) NOT NULL,
-            last_name VARCHAR(100) NOT NULL,
-            date_of_birth DATE,
-            gender VARCHAR(20),
-            mrn VARCHAR(20) UNIQUE,
-            is_active BOOLEAN DEFAULT TRUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    ");
-    
-    $stmt = $pdo->prepare("
-        INSERT INTO patients (first_name, last_name, date_of_birth, gender, mrn)
-        VALUES (?, ?, ?, ?, ?)
-    ");
-    
-    foreach ($patients as $patient) {
-        try {
-            $stmt->execute($patient);
-        } catch (PDOException $e) {
-            // Ignore duplicates
-        }
-    }
-    
-    // Sample providers
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS providers (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT,
-            npi VARCHAR(20),
-            specialty VARCHAR(100),
-            is_active BOOLEAN DEFAULT TRUE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    ");
-    
-    // Add a sample provider user
-    try {
-        $pdo->exec("
-            INSERT INTO users (username, email, password_hash, first_name, last_name, role, department)
-            VALUES ('drwilson', 'drwilson@example.com', '" . hashPassword('DemoProvider123!') . "', 'Sarah', 'Wilson', 'Provider', 'Internal Medicine')
-        ");
-    } catch (PDOException $e) {
-        // Ignore if exists
-    }
-    
-    return true;
+    // If backend API failed, log it but don't fail setup
+    // Admin can seed data later via CLI: python app.py --seed
+    error_log("Warning: Could not seed demo data via API. Run 'python app.py --seed' manually if needed.");
+    return false;
 }
 
 // Page display

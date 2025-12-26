@@ -5,15 +5,38 @@
  */
 
 // Check if setup is needed (first-time installation)
+
+// --- Setup redirect logic ---
 $setupCompletePath = __DIR__ . '/.setup_complete';
 $currentScript = basename($_SERVER['SCRIPT_NAME'] ?? '');
 
-// Redirect to setup if not complete and not already on setup page
-if (!file_exists($setupCompletePath) && $currentScript !== 'setup.php') {
+// Helper: check if users exist in DB (copied from setup.php)
+function config_hasExistingData() {
+    $envFile = __DIR__ . '/../.env';
+    if (!file_exists($envFile)) return false;
+    $env = parse_ini_file($envFile);
+    if (!$env || empty($env['DB_HOST']) || empty($env['DB_NAME']) || empty($env['DB_USER'])) return false;
+    try {
+        $dsn = "mysql:host={$env['DB_HOST']};port=" . ($env['DB_PORT'] ?? '3306') . ";dbname={$env['DB_NAME']};charset=utf8mb4";
+        $pdo = new PDO($dsn, $env['DB_USER'], $env['DB_PASS'] ?? '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 3]);
+        $stmt = $pdo->query("SELECT COUNT(*) FROM users");
+        $count = $stmt->fetchColumn();
+        return $count > 0;
+    } catch (PDOException $e) {
+        return false;
+    }
+}
+
+// Only redirect if:
+// - Setup is not complete
+// - Not already on setup.php
+// - No users exist in DB (setup not blocked)
+if (!file_exists($setupCompletePath)
+    && $currentScript !== 'setup.php'
+    && !config_hasExistingData()) {
     // Get the base path for redirection
     $basePath = dirname($_SERVER['SCRIPT_NAME']);
     $setupPath = rtrim($basePath, '/') . '/setup.php';
-    
     // For files in subdirectories, adjust path
     if (strpos($_SERVER['SCRIPT_NAME'], '/includes/') !== false ||
         strpos($_SERVER['SCRIPT_NAME'], '/api/') !== false ||
@@ -21,7 +44,6 @@ if (!file_exists($setupCompletePath) && $currentScript !== 'setup.php') {
         strpos($_SERVER['SCRIPT_NAME'], '/activities/') !== false) {
         $setupPath = dirname(dirname($_SERVER['SCRIPT_NAME'])) . '/setup.php';
     }
-    
     header('Location: ' . $setupPath);
     exit;
 }
