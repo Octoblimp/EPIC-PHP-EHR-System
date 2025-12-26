@@ -1,9 +1,11 @@
 """
 Non-Clinical Features Models
 Billing, Messaging, Documents, Reporting
+SECURITY: PII/PHI is automatically encrypted at rest
 """
 from datetime import datetime
 from . import db
+from utils.encryption import EncryptedString, EncryptedText
 import json
 import uuid
 
@@ -13,12 +15,12 @@ import uuid
 # ============================================================
 
 class BillingAccount(db.Model):
-    """Patient billing account"""
+    """Patient billing account - ENCRYPTED"""
     __tablename__ = 'billing_accounts'
     
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
-    account_number = db.Column(db.String(20), unique=True)
+    account_number = db.Column(db.String(20), unique=True)  # Plain for lookups
     
     # Balance
     current_balance = db.Column(db.Numeric(12, 2), default=0)
@@ -33,10 +35,10 @@ class BillingAccount(db.Model):
     has_payment_plan = db.Column(db.Boolean, default=False)
     monthly_payment_amount = db.Column(db.Numeric(10, 2))
     
-    # Collections
+    # Collections - ENCRYPTED (sensitive info)
     sent_to_collections = db.Column(db.Boolean, default=False)
     collections_date = db.Column(db.Date)
-    collections_agency = db.Column(db.String(100))
+    collections_agency = db.Column(EncryptedString(100))
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -54,20 +56,20 @@ class BillingAccount(db.Model):
 
 
 class Charge(db.Model):
-    """Individual charges/line items"""
+    """Individual charges/line items - ENCRYPTED"""
     __tablename__ = 'charges'
     
     id = db.Column(db.Integer, primary_key=True)
     billing_account_id = db.Column(db.Integer, db.ForeignKey('billing_accounts.id'), nullable=False)
     encounter_id = db.Column(db.Integer, db.ForeignKey('encounters.id'))
     
-    # Charge details
+    # Charge details - codes plain for queries, descriptions encrypted
     service_date = db.Column(db.Date, nullable=False)
-    procedure_code = db.Column(db.String(10), nullable=False)  # CPT code
-    procedure_description = db.Column(db.String(500))
+    procedure_code = db.Column(db.String(10), nullable=False)  # CPT code - plain for queries
+    procedure_description = db.Column(EncryptedString(500))
     
-    # Diagnosis codes
-    diagnosis_codes = db.Column(db.Text)  # JSON array of ICD-10 codes
+    # Diagnosis codes - ENCRYPTED (PHI)
+    diagnosis_codes = db.Column(EncryptedText())  # JSON array of ICD-10 codes
     
     # Units and amounts
     units = db.Column(db.Integer, default=1)
@@ -111,17 +113,17 @@ class Charge(db.Model):
 
 
 class Claim(db.Model):
-    """Insurance claims"""
+    """Insurance claims - ENCRYPTED"""
     __tablename__ = 'claims'
     
     id = db.Column(db.Integer, primary_key=True)
-    claim_number = db.Column(db.String(30), unique=True)
+    claim_number = db.Column(db.String(30), unique=True)  # Plain for lookups
     billing_account_id = db.Column(db.Integer, db.ForeignKey('billing_accounts.id'), nullable=False)
     
-    # Insurance
+    # Insurance - payer names encrypted
     insurance_id = db.Column(db.Integer, db.ForeignKey('insurance_coverages.id'), nullable=False)
     payer_id = db.Column(db.String(20))
-    payer_name = db.Column(db.String(200))
+    payer_name = db.Column(EncryptedString(200))
     
     # Dates
     service_date_from = db.Column(db.Date, nullable=False)
@@ -146,16 +148,16 @@ class Claim(db.Model):
     # Submission details
     submission_method = db.Column(db.String(20))  # electronic, paper
     clearinghouse_id = db.Column(db.String(50))
-    payer_claim_number = db.Column(db.String(50))
+    payer_claim_number = db.Column(EncryptedString(50))
     
-    # Response
+    # Response - ENCRYPTED
     adjudication_date = db.Column(db.Date)
     denial_reason_code = db.Column(db.String(10))
-    denial_reason = db.Column(db.String(500))
+    denial_reason = db.Column(EncryptedString(500))
     
-    # ERA/EOB
+    # ERA/EOB - ENCRYPTED
     era_received_date = db.Column(db.Date)
-    era_check_number = db.Column(db.String(30))
+    era_check_number = db.Column(EncryptedString(30))
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -173,11 +175,11 @@ class Claim(db.Model):
 
 
 class Payment(db.Model):
-    """Payment transactions"""
+    """Payment transactions - ENCRYPTED"""
     __tablename__ = 'payments'
     
     id = db.Column(db.Integer, primary_key=True)
-    payment_number = db.Column(db.String(30), unique=True)
+    payment_number = db.Column(db.String(30), unique=True)  # Plain for lookups
     billing_account_id = db.Column(db.Integer, db.ForeignKey('billing_accounts.id'), nullable=False)
     
     # Payment info
@@ -188,10 +190,10 @@ class Payment(db.Model):
     payment_source = db.Column(db.String(20))  # patient, insurance, adjustment
     payer_type = db.Column(db.String(20))  # primary, secondary, tertiary, patient
     
-    # Method
+    # Method - payment details encrypted
     payment_method = db.Column(db.String(20))  # cash, check, credit, eft
-    check_number = db.Column(db.String(30))
-    reference_number = db.Column(db.String(50))
+    check_number = db.Column(EncryptedString(30))
+    reference_number = db.Column(EncryptedString(50))
     
     # Claim link
     claim_id = db.Column(db.Integer, db.ForeignKey('claims.id'))
@@ -220,14 +222,14 @@ class Payment(db.Model):
 # ============================================================
 
 class MessageThread(db.Model):
-    """Secure message threads"""
+    """Secure message threads - ENCRYPTED"""
     __tablename__ = 'message_threads'
     
     id = db.Column(db.Integer, primary_key=True)
     thread_uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
     
-    # Subject and type
-    subject = db.Column(db.String(500), nullable=False)
+    # Subject and type - ENCRYPTED (may contain patient info)
+    subject = db.Column(EncryptedString(500), nullable=False)
     thread_type = db.Column(db.String(30), default='general')
     # general, clinical, refill_request, appointment, billing, referral
     
@@ -263,7 +265,7 @@ class MessageThread(db.Model):
 
 
 class Message(db.Model):
-    """Individual messages"""
+    """Individual messages - ENCRYPTED"""
     __tablename__ = 'messages'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -274,8 +276,8 @@ class Message(db.Model):
     sender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     sender_type = db.Column(db.String(20))  # staff, patient, system
     
-    # Content (encrypted at rest)
-    content = db.Column(db.Text, nullable=False)
+    # Content - ENCRYPTED (PHI in messages)
+    content = db.Column(EncryptedText(), nullable=False)
     content_type = db.Column(db.String(20), default='text')  # text, html
     
     # Reply info
@@ -349,15 +351,15 @@ class MessageAttachment(db.Model):
 # ============================================================
 
 class Document(db.Model):
-    """Document storage and management"""
+    """Document storage and management - ENCRYPTED"""
     __tablename__ = 'documents'
     
     id = db.Column(db.Integer, primary_key=True)
     document_uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
     
-    # Basic info
-    title = db.Column(db.String(500), nullable=False)
-    description = db.Column(db.Text)
+    # Basic info - ENCRYPTED
+    title = db.Column(EncryptedString(500), nullable=False)
+    description = db.Column(EncryptedText())
     
     # Type and category
     document_type = db.Column(db.String(50), nullable=False)
@@ -368,11 +370,11 @@ class Document(db.Model):
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'))
     encounter_id = db.Column(db.Integer, db.ForeignKey('encounters.id'))
     
-    # File info
-    file_name = db.Column(db.String(255), nullable=False)
+    # File info - ENCRYPTED file path for security
+    file_name = db.Column(EncryptedString(255), nullable=False)
     file_type = db.Column(db.String(50))  # MIME type
     file_size = db.Column(db.Integer)
-    file_path = db.Column(db.String(500))  # Encrypted storage path
+    file_path = db.Column(EncryptedString(500))  # Encrypted storage path
     file_hash = db.Column(db.String(64))  # SHA-256 for integrity
     
     # Security
@@ -395,7 +397,7 @@ class Document(db.Model):
     
     # Source
     source = db.Column(db.String(50))  # scan, fax, upload, system, interface
-    source_reference = db.Column(db.String(100))
+    source_reference = db.Column(EncryptedString(100))
     
     # Dates
     document_date = db.Column(db.Date)  # Date of the document content
@@ -421,7 +423,7 @@ class Document(db.Model):
 
 
 class DocumentTemplate(db.Model):
-    """Document templates"""
+    """Document templates - ENCRYPTED"""
     __tablename__ = 'document_templates'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -432,8 +434,8 @@ class DocumentTemplate(db.Model):
     template_type = db.Column(db.String(50))  # letter, form, consent, etc.
     category = db.Column(db.String(50))
     
-    # Content
-    content = db.Column(db.Text)  # HTML template with placeholders
+    # Content - ENCRYPTED (may contain clinical terminology templates)
+    content = db.Column(EncryptedText())  # HTML template with placeholders
     
     # Settings
     is_active = db.Column(db.Boolean, default=True)
@@ -460,22 +462,22 @@ class DocumentTemplate(db.Model):
 # ============================================================
 
 class ReportDefinition(db.Model):
-    """Report definitions"""
+    """Report definitions - ENCRYPTED"""
     __tablename__ = 'report_definitions'
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     code = db.Column(db.String(50), unique=True)
-    description = db.Column(db.Text)
+    description = db.Column(EncryptedText())
     
     # Type
     report_type = db.Column(db.String(50))
     # clinical, financial, operational, compliance, custom
     category = db.Column(db.String(50))
     
-    # Query
-    query_definition = db.Column(db.Text)  # SQL or JSON definition
-    parameters = db.Column(db.Text)  # JSON array of parameter definitions
+    # Query - ENCRYPTED (sensitive SQL)
+    query_definition = db.Column(EncryptedText())  # SQL or JSON definition
+    parameters = db.Column(EncryptedText())  # JSON array of parameter definitions
     
     # Output
     default_format = db.Column(db.String(20), default='pdf')  # pdf, excel, csv, html
@@ -503,24 +505,24 @@ class ReportDefinition(db.Model):
 
 
 class ReportExecution(db.Model):
-    """Report execution history"""
+    """Report execution history - ENCRYPTED"""
     __tablename__ = 'report_executions'
     
     id = db.Column(db.Integer, primary_key=True)
     report_id = db.Column(db.Integer, db.ForeignKey('report_definitions.id'), nullable=False)
     
-    # Execution details
-    parameters_used = db.Column(db.Text)  # JSON
+    # Execution details - ENCRYPTED (may contain PHI parameters)
+    parameters_used = db.Column(EncryptedText())  # JSON
     output_format = db.Column(db.String(20))
     
     # Status
     status = db.Column(db.String(20), default='queued')
     # queued, running, completed, failed
     
-    # Results
+    # Results - ENCRYPTED file path
     row_count = db.Column(db.Integer)
-    file_path = db.Column(db.String(500))
-    error_message = db.Column(db.Text)
+    file_path = db.Column(EncryptedString(500))
+    error_message = db.Column(EncryptedText())
     
     # Timing
     started_at = db.Column(db.DateTime)
@@ -544,7 +546,7 @@ class ReportExecution(db.Model):
 
 
 class ScheduledReport(db.Model):
-    """Scheduled report jobs"""
+    """Scheduled report jobs - ENCRYPTED"""
     __tablename__ = 'scheduled_reports'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -556,13 +558,13 @@ class ScheduledReport(db.Model):
     schedule_time = db.Column(db.Time)
     schedule_day = db.Column(db.Integer)  # Day of week (0-6) or day of month (1-31)
     
-    # Parameters
-    parameters = db.Column(db.Text)  # JSON
+    # Parameters - ENCRYPTED (may contain PHI)
+    parameters = db.Column(EncryptedText())  # JSON
     output_format = db.Column(db.String(20), default='pdf')
     
-    # Distribution
-    email_recipients = db.Column(db.Text)  # JSON array
-    save_to_path = db.Column(db.String(500))
+    # Distribution - ENCRYPTED (email addresses are PII)
+    email_recipients = db.Column(EncryptedText())  # JSON array
+    save_to_path = db.Column(EncryptedString(500))
     
     # Status
     is_active = db.Column(db.Boolean, default=True)
@@ -589,15 +591,15 @@ class ScheduledReport(db.Model):
 # ============================================================
 
 class Task(db.Model):
-    """Tasks and to-do items"""
+    """Tasks and to-do items - ENCRYPTED"""
     __tablename__ = 'tasks'
     
     id = db.Column(db.Integer, primary_key=True)
     task_uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
     
-    # Task info
-    title = db.Column(db.String(500), nullable=False)
-    description = db.Column(db.Text)
+    # Task info - ENCRYPTED (may contain PHI)
+    title = db.Column(EncryptedString(500), nullable=False)
+    description = db.Column(EncryptedText())
     task_type = db.Column(db.String(50))  # followup, callback, review, authorization, etc.
     
     # Priority
@@ -620,10 +622,10 @@ class Task(db.Model):
     status = db.Column(db.String(20), default='open')
     # open, in_progress, completed, cancelled
     
-    # Completion
+    # Completion - ENCRYPTED notes
     completed_at = db.Column(db.DateTime)
     completed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
-    completion_notes = db.Column(db.Text)
+    completion_notes = db.Column(EncryptedText())
     
     # Audit
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -645,15 +647,15 @@ class Task(db.Model):
 
 
 class Alert(db.Model):
-    """System alerts and notifications"""
+    """System alerts and notifications - ENCRYPTED"""
     __tablename__ = 'alerts'
     
     id = db.Column(db.Integer, primary_key=True)
     alert_uuid = db.Column(db.String(36), unique=True, default=lambda: str(uuid.uuid4()))
     
-    # Alert info
-    title = db.Column(db.String(500), nullable=False)
-    message = db.Column(db.Text)
+    # Alert info - ENCRYPTED (may contain PHI)
+    title = db.Column(EncryptedString(500), nullable=False)
+    message = db.Column(EncryptedText())
     alert_type = db.Column(db.String(50))
     # clinical, result, medication, appointment, task, system
     severity = db.Column(db.String(20), default='info')

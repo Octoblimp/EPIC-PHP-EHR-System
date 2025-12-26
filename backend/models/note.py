@@ -1,11 +1,13 @@
 """
 Note Model - Clinical documentation notes and addenda
+SECURITY: All clinical content is automatically encrypted at rest
 """
 from datetime import datetime
 from . import db
+from utils.encryption import EncryptedString, EncryptedText
 
 class Note(db.Model):
-    """Clinical notes"""
+    """Clinical notes - Content is automatically encrypted"""
     __tablename__ = 'notes'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -13,20 +15,20 @@ class Note(db.Model):
     encounter_id = db.Column(db.Integer, db.ForeignKey('encounters.id'))
     
     # Note Details
-    note_type = db.Column(db.String(100), nullable=False)  # Progress Note, H&P, Consult, Discharge Summary
-    note_title = db.Column(db.String(300))
-    service = db.Column(db.String(100))  # Medicine, Surgery, Nursing, etc.
-    specialty = db.Column(db.String(100))  # Cardiology, Oncology, etc.
+    note_type = db.Column(db.String(100), nullable=False)  # Plain for filtering
+    note_title = db.Column(EncryptedString(300))
+    service = db.Column(db.String(100))  # Plain for filtering
+    specialty = db.Column(db.String(100))  # Plain for filtering
     
-    # Content
-    content = db.Column(db.Text)
-    content_html = db.Column(db.Text)
+    # Content - ENCRYPTED (PHI)
+    content = db.Column(EncryptedText())
+    content_html = db.Column(EncryptedText())
     
-    # Author Info
-    author = db.Column(db.String(200), nullable=False)
+    # Author Info - ENCRYPTED
+    author = db.Column(EncryptedString(200), nullable=False)
     author_id = db.Column(db.Integer)
-    author_role = db.Column(db.String(100))  # Physician, NP, PA, RN, etc.
-    cosigner = db.Column(db.String(200))
+    author_role = db.Column(db.String(100))  # Plain for filtering
+    cosigner = db.Column(EncryptedString(200))
     cosigner_id = db.Column(db.Integer)
     
     # Dates

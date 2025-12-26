@@ -1,11 +1,13 @@
 """
 Vital Signs Model - Patient vital signs documentation
+SECURITY: All clinical data is automatically encrypted at rest
 """
 from datetime import datetime
 from . import db
+from utils.encryption import EncryptedString, EncryptedText
 
 class Vital(db.Model):
-    """Patient vital signs"""
+    """Patient vital signs - data is automatically encrypted"""
     __tablename__ = 'vitals'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -14,7 +16,7 @@ class Vital(db.Model):
     
     # Timestamp
     recorded_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    recorded_by = db.Column(db.String(200))
+    recorded_by = db.Column(EncryptedString(200))  # ENCRYPTED
     
     # Core Vitals
     temperature = db.Column(db.Float)  # Fahrenheit
@@ -30,13 +32,13 @@ class Vital(db.Model):
     
     # Oxygen
     spo2 = db.Column(db.Integer)  # Oxygen saturation %
-    o2_device = db.Column(db.String(100))  # Room air, Nasal cannula, etc.
+    o2_device = db.Column(EncryptedString(100))  # Room air, Nasal cannula, etc.
     o2_flow_rate = db.Column(db.Float)  # L/min
     fio2 = db.Column(db.Integer)  # % for ventilated patients
     
-    # Pain
+    # Pain - ENCRYPTED
     pain_score = db.Column(db.Integer)  # 0-10
-    pain_location = db.Column(db.String(200))
+    pain_location = db.Column(EncryptedString(200))
     
     # Additional
     weight_kg = db.Column(db.Float)
@@ -47,15 +49,15 @@ class Vital(db.Model):
     gcs_eye = db.Column(db.Integer)
     gcs_verbal = db.Column(db.Integer)
     gcs_motor = db.Column(db.Integer)
-    pupil_left = db.Column(db.String(50))
-    pupil_right = db.Column(db.String(50))
+    pupil_left = db.Column(EncryptedString(50))
+    pupil_right = db.Column(EncryptedString(50))
     
-    # OB specific
+    # OB specific - ENCRYPTED
     fetal_heart_rate = db.Column(db.Integer)
-    contractions = db.Column(db.String(100))
+    contractions = db.Column(EncryptedString(100))
     
-    # Notes
-    notes = db.Column(db.Text)
+    # Notes - ENCRYPTED (may contain PHI)
+    notes = db.Column(EncryptedText())
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     

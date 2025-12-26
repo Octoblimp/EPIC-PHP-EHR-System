@@ -1,9 +1,11 @@
 """
 HIPAA Compliance - Audit Logging System
 Comprehensive PHI access logging and security audit trail
+SECURITY: Sensitive audit data is automatically encrypted at rest
 """
 from datetime import datetime
 from . import db
+from utils.encryption import EncryptedString, EncryptedText
 import json
 
 
@@ -11,22 +13,23 @@ class AuditLog(db.Model):
     """
     HIPAA-compliant audit log for all system activities
     Tracks: who, what, when, where, why
+    Sensitive data is automatically encrypted
     """
     __tablename__ = 'audit_logs'
     
     id = db.Column(db.Integer, primary_key=True)
     
-    # WHO
+    # WHO - partially encrypted
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    username = db.Column(db.String(50))  # Denormalized for performance
+    username = db.Column(db.String(50))  # Plain for queries
     user_role = db.Column(db.String(100))
     
     # WHEN
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
     
-    # WHERE
-    ip_address = db.Column(db.String(45))
-    user_agent = db.Column(db.String(500))
+    # WHERE - IP encrypted for privacy
+    ip_address = db.Column(EncryptedString(45))
+    user_agent = db.Column(EncryptedString(500))
     session_id = db.Column(db.String(64))
     facility_id = db.Column(db.Integer, db.ForeignKey('facilities.id'))
     
@@ -37,25 +40,25 @@ class AuditLog(db.Model):
     
     # PHI Access
     patient_id = db.Column(db.Integer, index=True)
-    patient_mrn = db.Column(db.String(50))
+    patient_mrn = db.Column(db.String(50))  # Plain for lookups
     is_phi_access = db.Column(db.Boolean, default=False, index=True)
     phi_type = db.Column(db.String(50))  # Demographics, Diagnosis, Medications, etc.
     
-    # WHY (for break-the-glass)
-    access_reason = db.Column(db.String(500))
+    # WHY (for break-the-glass) - ENCRYPTED
+    access_reason = db.Column(EncryptedString(500))
     is_emergency_access = db.Column(db.Boolean, default=False)
     
-    # Details
-    description = db.Column(db.Text)
-    old_values = db.Column(db.Text)  # JSON of previous values for UPDATE
-    new_values = db.Column(db.Text)  # JSON of new values for CREATE/UPDATE
+    # Details - ENCRYPTED (may contain PHI)
+    description = db.Column(EncryptedText())
+    old_values = db.Column(EncryptedText())  # JSON of previous values for UPDATE
+    new_values = db.Column(EncryptedText())  # JSON of new values for CREATE/UPDATE
     request_url = db.Column(db.String(500))
     request_method = db.Column(db.String(10))
     response_status = db.Column(db.Integer)
     
     # Status
     status = db.Column(db.String(20), default='SUCCESS')  # SUCCESS, FAILURE, DENIED
-    error_message = db.Column(db.Text)
+    error_message = db.Column(EncryptedText())
     
     # Relationships - using backref instead of back_populates to avoid requiring User model to define the relationship
     user = db.relationship('User', foreign_keys=[user_id], lazy='joined')

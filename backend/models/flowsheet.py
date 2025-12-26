@@ -1,11 +1,13 @@
 """
 Flowsheet Model - Documentation flowsheets and entries
+SECURITY: PHI/clinical data is automatically encrypted at rest
 """
 from datetime import datetime
 from . import db
+from utils.encryption import EncryptedString, EncryptedText
 
 class FlowsheetTemplate(db.Model):
-    """Flowsheet templates/definitions"""
+    """Flowsheet templates/definitions - ENCRYPTED"""
     __tablename__ = 'flowsheet_templates'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -13,12 +15,12 @@ class FlowsheetTemplate(db.Model):
     display_name = db.Column(db.String(200))
     category = db.Column(db.String(100))  # Vitals, Assessment, Intervention, etc.
     department = db.Column(db.String(100))
-    description = db.Column(db.Text)
+    description = db.Column(EncryptedText())
     
     # Configuration
     data_type = db.Column(db.String(50))  # numeric, text, select, multiselect, datetime
     unit = db.Column(db.String(50))
-    options_json = db.Column(db.Text)  # JSON array for select options
+    options_json = db.Column(EncryptedText())  # JSON array for select options - may contain clinical terminology
     
     # Validation
     min_value = db.Column(db.Float)
@@ -53,7 +55,7 @@ class FlowsheetTemplate(db.Model):
 
 
 class FlowsheetEntry(db.Model):
-    """Individual flowsheet documentation entries"""
+    """Individual flowsheet documentation entries - ENCRYPTED"""
     __tablename__ = 'flowsheet_entries'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -61,10 +63,10 @@ class FlowsheetEntry(db.Model):
     encounter_id = db.Column(db.Integer, db.ForeignKey('encounters.id'))
     template_id = db.Column(db.Integer, db.ForeignKey('flowsheet_templates.id'))
     
-    # Entry Data
-    row_name = db.Column(db.String(200), nullable=False)
-    value = db.Column(db.Text)
-    numeric_value = db.Column(db.Float)
+    # Entry Data - ENCRYPTED (clinical values are PHI)
+    row_name = db.Column(EncryptedString(200), nullable=False)
+    value = db.Column(EncryptedText())
+    numeric_value = db.Column(db.Float)  # Keep numeric for range queries where needed
     
     # Context
     section = db.Column(db.String(100))
@@ -73,15 +75,15 @@ class FlowsheetEntry(db.Model):
     
     # Timestamp
     entry_datetime = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    documented_by = db.Column(db.String(200))
+    documented_by = db.Column(EncryptedString(200))
     
-    # Comments
-    comments = db.Column(db.Text)
+    # Comments - ENCRYPTED
+    comments = db.Column(EncryptedText())
     
     # Status
     status = db.Column(db.String(50), default='Active')  # Active, Deleted, Modified
     is_deleted = db.Column(db.Boolean, default=False)
-    deleted_by = db.Column(db.String(200))
+    deleted_by = db.Column(EncryptedString(200))
     deleted_date = db.Column(db.DateTime)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

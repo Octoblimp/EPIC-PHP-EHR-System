@@ -5,6 +5,10 @@
  * 
  * SECURITY NOTE: All user inputs are validated and sanitized.
  * Patient ID is validated as a positive integer to prevent injection attacks.
+ * 
+ * SECURITY: If DOB verification is enabled and user hasn't verified,
+ * they are REDIRECTED to a separate verification page BEFORE any
+ * patient data is loaded. This prevents inspect-element bypasses.
  */
 
 // Include configuration
@@ -25,6 +29,18 @@ if (!$patient_id) {
     exit;
 }
 
+// SECURITY: Check verification BEFORE loading any patient data
+// This prevents inspect-element bypasses since no data is present to reveal
+$needs_verification = isPatientProtectionEnabled() && !hasVerifiedPatientAccess($patient_id);
+
+if ($needs_verification) {
+    // Redirect to secure verification page - NO patient data loaded
+    $verify_url = 'verify-patient.php?id=' . $patient_id . '&tab=' . urlencode($current_tab);
+    header('Location: ' . $verify_url);
+    exit;
+}
+
+// Only load patient data AFTER verification passes
 // Fetch patient data from API using patientService
 $patientData = $patientService->getById($patient_id);
 $patient = ($patientData['success'] ?? false) ? ($patientData['data'] ?? null) : null;
@@ -161,197 +177,11 @@ $sticky_notes = [
 // Set page title
 $page_title = $patient_name . ' - ' . APP_NAME;
 
-// Check if patient record protection is enabled and user needs verification
-$needs_verification = isPatientProtectionEnabled() && !hasVerifiedPatientAccess($patient_id);
+// SECURITY: Verification is now handled via redirect at the top of this file
+// No need for overlay - user must complete verification before reaching this point
 
 // Include header
 include 'includes/header.php';
-
-// If protection is enabled and user hasn't verified, show verification overlay
-if ($needs_verification): ?>
-<div class="patient-verification-overlay" style="
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.85);
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-">
-    <div style="
-        background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-        max-width: 450px;
-        width: 90%;
-        overflow: hidden;
-    ">
-        <div style="
-            background: linear-gradient(135deg, #2196F3, #1976D2);
-            color: white;
-            padding: 20px 25px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        ">
-            <i class="fas fa-shield-alt" style="font-size: 28px;"></i>
-            <div>
-                <h3 style="margin: 0; font-size: 18px;">Patient Record Protection</h3>
-                <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 13px;">Identity verification required</p>
-            </div>
-        </div>
-        <div style="padding: 25px;">
-            <p style="color: #666; margin-bottom: 20px; line-height: 1.5;">
-                To protect patient privacy, please verify your access to this record by entering the patient's date of birth.
-            </p>
-            <div style="
-                background: #f8f9fa;
-                border-radius: 8px;
-                padding: 15px;
-                margin-bottom: 20px;
-            ">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                    <i class="fas fa-user" style="color: #1976D2;"></i>
-                    <strong><?php echo htmlspecialchars($patient_name); ?></strong>
-                </div>
-                <div style="font-size: 13px; color: #666;">
-                    MRN: <?php echo htmlspecialchars($mrn); ?>
-                </div>
-            </div>
-            <div class="form-group" style="margin-bottom: 20px;">
-                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">
-                    Patient Date of Birth
-                </label>
-                <input type="text" 
-                       id="protectionDOB" 
-                       class="form-control" 
-                       placeholder="MMDDYYYY" 
-                       maxlength="8" 
-                       pattern="[0-9]*" 
-                       inputmode="numeric"
-                       style="
-                           font-size: 18px;
-                           padding: 12px 15px;
-                           letter-spacing: 2px;
-                           text-align: center;
-                           border: 2px solid #ddd;
-                           border-radius: 8px;
-                           width: 100%;
-                           box-sizing: border-box;
-                       "
-                       autofocus>
-                <small style="display: block; margin-top: 8px; color: #888;">
-                    Format: MMDDYYYY (e.g., 01311990)
-                </small>
-            </div>
-            <div id="protectionError" style="
-                background: #ffebee;
-                color: #c62828;
-                padding: 12px 15px;
-                border-radius: 6px;
-                margin-bottom: 15px;
-                display: none;
-            ">
-                <i class="fas fa-exclamation-circle"></i>
-                <span id="protectionErrorText"></span>
-            </div>
-            <div style="display: flex; gap: 10px;">
-                <button onclick="cancelPatientAccess()" style="
-                    flex: 1;
-                    padding: 12px 20px;
-                    border: 2px solid #ddd;
-                    background: #fff;
-                    color: #666;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-size: 14px;
-                    font-weight: 600;
-                ">
-                    <i class="fas fa-arrow-left"></i> Go Back
-                </button>
-                <button onclick="verifyPatientDOB()" id="verifyBtn" style="
-                    flex: 2;
-                    padding: 12px 20px;
-                    border: none;
-                    background: linear-gradient(135deg, #4CAF50, #43A047);
-                    color: white;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-size: 14px;
-                    font-weight: 600;
-                ">
-                    <i class="fas fa-check"></i> Verify Access
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-<script>
-document.getElementById('protectionDOB').focus();
-document.getElementById('protectionDOB').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') verifyPatientDOB();
-});
-
-function cancelPatientAccess() {
-    // Close the patient tab before redirecting
-    fetch('api/proxy.php?endpoint=close-patient-tab', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patient_id: '<?php echo $patient_id; ?>' })
-    })
-    .then(function() {
-        window.location.href = 'patients.php';
-    })
-    .catch(function() {
-        window.location.href = 'patients.php';
-    });
-}
-
-function verifyPatientDOB() {
-    var dob = document.getElementById('protectionDOB').value;
-    var errorDiv = document.getElementById('protectionError');
-    var errorText = document.getElementById('protectionErrorText');
-    var verifyBtn = document.getElementById('verifyBtn');
-    
-    if (!dob || dob.length !== 8) {
-        errorText.textContent = 'Please enter date of birth in MMDDYYYY format';
-        errorDiv.style.display = 'block';
-        return;
-    }
-    
-    verifyBtn.disabled = true;
-    verifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
-    
-    fetch('api/proxy.php?endpoint=verify-patient-access', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patient_id: '<?php echo $patient_id; ?>', dob: dob })
-    })
-    .then(function(response) { return response.json(); })
-    .then(function(data) {
-        if (data.success) {
-            window.location.reload();
-        } else {
-            errorText.textContent = data.error || 'Verification failed. Please try again.';
-            errorDiv.style.display = 'block';
-            verifyBtn.disabled = false;
-            verifyBtn.innerHTML = '<i class="fas fa-check"></i> Verify Access';
-        }
-    })
-    .catch(function(err) {
-        errorText.textContent = 'Error verifying access. Please try again.';
-        errorDiv.style.display = 'block';
-        verifyBtn.disabled = false;
-        verifyBtn.innerHTML = '<i class="fas fa-check"></i> Verify Access';
-    });
-}
-</script>
-<?php 
-endif; // End verification overlay
-?>
 
     <!-- Enhanced Patient Header Banner - Epic Hyperspace Style -->
     <div class="patient-banner enhanced">
@@ -380,11 +210,7 @@ endif; // End verification overlay
                 </div>
                 <div class="patient-identifiers">
                     <span class="identifier"><label>MRN:</label> <?php echo htmlspecialchars($mrn); ?></span>
-                    <?php if (!$needs_verification): ?>
                     <span class="identifier"><label>DOB:</label> <?php echo formatDate($patient['date_of_birth'] ?? ''); ?></span>
-                    <?php else: ?>
-                    <span class="identifier"><label>DOB:</label> <span style="color:#888;">••/••/••••</span></span>
-                    <?php endif; ?>
                     <span class="identifier"><label>SSN:</label> xxx-xx-<?php echo htmlspecialchars($patient['ssn_last_four'] ?? '****'); ?></span>
                 </div>
                 <!-- Encounter Info Row -->

@@ -1,16 +1,18 @@
 """
 Encounter Model - Patient visits, admissions, and sticky notes
+SECURITY: PHI/clinical data is automatically encrypted at rest
 """
 from datetime import datetime
 from . import db
+from utils.encryption import EncryptedString, EncryptedText
 
 class Encounter(db.Model):
-    """Patient encounter/visit information"""
+    """Patient encounter/visit information - PHI encrypted"""
     __tablename__ = 'encounters'
     
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
-    csn = db.Column(db.String(20), unique=True, nullable=False)  # Contact Serial Number
+    csn = db.Column(db.String(20), unique=True, nullable=False)  # Contact Serial Number - needed for lookups
     
     # Encounter Details
     encounter_type = db.Column(db.String(50))  # Inpatient, Outpatient, ED, Observation
@@ -19,58 +21,58 @@ class Encounter(db.Model):
     discharge_date = db.Column(db.DateTime)
     expected_discharge_date = db.Column(db.DateTime)  # Expected D/C
     
-    # Location
-    facility = db.Column(db.String(200))
-    department = db.Column(db.String(200))
-    room = db.Column(db.String(20))
-    bed = db.Column(db.String(20))
-    unit = db.Column(db.String(100))
-    nursing_station = db.Column(db.String(100))
+    # Location - ENCRYPTED (PHI when combined with patient)
+    facility = db.Column(EncryptedString(200))
+    department = db.Column(EncryptedString(200))
+    room = db.Column(EncryptedString(20))
+    bed = db.Column(EncryptedString(20))
+    unit = db.Column(EncryptedString(100))
+    nursing_station = db.Column(EncryptedString(100))
     
-    # Care Team
-    attending_provider = db.Column(db.String(200))
+    # Care Team - ENCRYPTED (provider names are sensitive)
+    attending_provider = db.Column(EncryptedString(200))
     attending_provider_id = db.Column(db.Integer)
-    admitting_provider = db.Column(db.String(200))
-    primary_nurse = db.Column(db.String(200))
+    admitting_provider = db.Column(EncryptedString(200))
+    primary_nurse = db.Column(EncryptedString(200))
     primary_nurse_id = db.Column(db.Integer)
-    treatment_team = db.Column(db.String(500))
-    consulting_providers = db.Column(db.Text)  # JSON array of consults
+    treatment_team = db.Column(EncryptedString(500))
+    consulting_providers = db.Column(EncryptedText())  # JSON array of consults
     
-    # Clinical
-    chief_complaint = db.Column(db.Text)
-    admission_diagnosis = db.Column(db.String(500))
-    principal_diagnosis = db.Column(db.String(500))
-    secondary_diagnoses = db.Column(db.Text)  # JSON array
+    # Clinical - ENCRYPTED (sensitive diagnoses)
+    chief_complaint = db.Column(EncryptedText())
+    admission_diagnosis = db.Column(EncryptedString(500))
+    principal_diagnosis = db.Column(EncryptedString(500))
+    secondary_diagnoses = db.Column(EncryptedText())  # JSON array
     readmit_risk = db.Column(db.Integer)  # 0-100
     level_of_care = db.Column(db.String(50))
-    code_status = db.Column(db.String(50))  # Full Code, DNR, DNI, etc.
-    isolation_status = db.Column(db.String(100))
-    isolation_type = db.Column(db.String(100))  # Contact, Droplet, Airborne, etc.
+    code_status = db.Column(EncryptedString(50))  # Full Code, DNR, DNI, etc. - sensitive
+    isolation_status = db.Column(EncryptedString(100))
+    isolation_type = db.Column(EncryptedString(100))  # Contact, Droplet, Airborne, etc.
     fall_risk = db.Column(db.Boolean, default=False)
     fall_risk_score = db.Column(db.Integer)
     suicide_risk = db.Column(db.Boolean, default=False)
     elopement_risk = db.Column(db.Boolean, default=False)
     pressure_ulcer_risk = db.Column(db.Boolean, default=False)
     
-    # Patient Safety Alerts
+    # Patient Safety Alerts - ENCRYPTED
     allergy_alerts = db.Column(db.Boolean, default=False)
-    critical_alerts = db.Column(db.Text)  # JSON array of critical alerts
+    critical_alerts = db.Column(EncryptedText())  # JSON array of critical alerts
     
     # Administrative
     financial_class = db.Column(db.String(100))
     pop = db.Column(db.String(50))  # Point of Presentation
     status = db.Column(db.String(50), default='Active')  # Active, Discharged, Transferred, Expired
-    disposition = db.Column(db.String(100))  # Discharge disposition
+    disposition = db.Column(EncryptedString(100))  # Discharge disposition
     
-    # Transfer info
-    transferred_from = db.Column(db.String(200))
-    transferred_to = db.Column(db.String(200))
-    transfer_reason = db.Column(db.Text)
+    # Transfer info - ENCRYPTED
+    transferred_from = db.Column(EncryptedString(200))
+    transferred_to = db.Column(EncryptedString(200))
+    transfer_reason = db.Column(EncryptedText())
     
     # Dates
     ad_lwi_received = db.Column(db.DateTime)  # Advanced Directives received
     ad_poa_declined = db.Column(db.DateTime)  # Power of Attorney declined
-    hclr = db.Column(db.String(100))  # Healthcare Legal Representative
+    hclr = db.Column(EncryptedString(100))  # Healthcare Legal Representative - PII
     
     # Billing
     drg = db.Column(db.String(20))  # Diagnosis Related Group
@@ -160,16 +162,16 @@ class Encounter(db.Model):
 
 
 class StickyNote(db.Model):
-    """Patient/encounter sticky notes - important alerts and reminders"""
+    """Patient/encounter sticky notes - important alerts and reminders - ENCRYPTED"""
     __tablename__ = 'sticky_notes'
     
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
     encounter_id = db.Column(db.Integer, db.ForeignKey('encounters.id'))  # Optional - can be patient-level
     
-    # Note Content
-    title = db.Column(db.String(200), nullable=False)
-    content = db.Column(db.Text, nullable=False)
+    # Note Content - ENCRYPTED (may contain PHI)
+    title = db.Column(EncryptedString(200), nullable=False)
+    content = db.Column(EncryptedText(), nullable=False)
     note_type = db.Column(db.String(50))  # Clinical, Administrative, Social, Safety, etc.
     priority = db.Column(db.String(20), default='Normal')  # Low, Normal, High, Critical
     color = db.Column(db.String(20), default='yellow')  # yellow, blue, green, red, purple, orange
@@ -183,16 +185,16 @@ class StickyNote(db.Model):
     expires_at = db.Column(db.DateTime)  # Auto-expire date
     expires_on_discharge = db.Column(db.Boolean, default=False)  # Expire when discharged
     
-    # Status
+    # Status - ENCRYPTED acknowledgements
     is_active = db.Column(db.Boolean, default=True)
-    acknowledged_by = db.Column(db.String(200))
+    acknowledged_by = db.Column(EncryptedString(200))
     acknowledged_at = db.Column(db.DateTime)
     
-    # Audit
-    created_by = db.Column(db.String(200), nullable=False)
+    # Audit - ENCRYPTED staff names
+    created_by = db.Column(EncryptedString(200), nullable=False)
     created_by_id = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_by = db.Column(db.String(200))
+    updated_by = db.Column(EncryptedString(200))
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships

@@ -1,27 +1,29 @@
 """
 Order Model - Clinical orders (labs, imaging, procedures, etc.)
+SECURITY: PHI/clinical data is automatically encrypted at rest
 """
 from datetime import datetime
 from . import db
+from utils.encryption import EncryptedString, EncryptedText
 
 class Order(db.Model):
-    """Clinical orders"""
+    """Clinical orders - PHI encrypted"""
     __tablename__ = 'orders'
     
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
     encounter_id = db.Column(db.Integer, db.ForeignKey('encounters.id'))
     
-    # Order Details
-    order_name = db.Column(db.String(300), nullable=False)
+    # Order Details - ENCRYPTED (clinical PHI)
+    order_name = db.Column(EncryptedString(300), nullable=False)
     order_type = db.Column(db.String(50))  # Lab, Imaging, Procedure, Consult, Nursing, Diet
     order_category = db.Column(db.String(100))
     
     # Priority
     priority = db.Column(db.String(50), default='Routine')  # Stat, Urgent, Routine, Timed
     
-    # Ordering Info
-    ordering_provider = db.Column(db.String(200))
+    # Ordering Info - ENCRYPTED (provider names)
+    ordering_provider = db.Column(EncryptedString(200))
     order_date = db.Column(db.DateTime, default=datetime.utcnow)
     order_time = db.Column(db.DateTime)
     
@@ -33,13 +35,13 @@ class Order(db.Model):
     # Status
     status = db.Column(db.String(50), default='Ordered')  # Ordered, In Progress, Completed, Cancelled, Pending
     acknowledgement_status = db.Column(db.String(50))  # Acknowledged, Pending, Not Required
-    acknowledged_by = db.Column(db.String(200))
+    acknowledged_by = db.Column(EncryptedString(200))
     acknowledged_date = db.Column(db.DateTime)
     
-    # Clinical
-    diagnosis = db.Column(db.String(500))
-    clinical_indication = db.Column(db.Text)
-    special_instructions = db.Column(db.Text)
+    # Clinical - ENCRYPTED (sensitive diagnoses and instructions)
+    diagnosis = db.Column(EncryptedString(500))
+    clinical_indication = db.Column(EncryptedText())
+    special_instructions = db.Column(EncryptedText())
     
     # Results
     result_status = db.Column(db.String(50))  # Pending, Preliminary, Final
@@ -76,17 +78,17 @@ class Order(db.Model):
 
 
 class OrderSet(db.Model):
-    """Pre-defined order sets"""
+    """Pre-defined order sets - ENCRYPTED"""
     __tablename__ = 'order_sets'
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text)
+    description = db.Column(EncryptedText())
     category = db.Column(db.String(100))
     department = db.Column(db.String(100))
-    orders_json = db.Column(db.Text)  # JSON array of order templates
+    orders_json = db.Column(EncryptedText())  # JSON array of order templates - may contain clinical defaults
     is_active = db.Column(db.Boolean, default=True)
-    created_by = db.Column(db.String(200))
+    created_by = db.Column(EncryptedString(200))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def to_dict(self):

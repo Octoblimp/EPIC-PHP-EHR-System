@@ -1,35 +1,37 @@
 """
 Medication Model - Patient medications and orders
+SECURITY: All medication data is automatically encrypted at rest
 """
 from datetime import datetime
 from . import db
+from utils.encryption import EncryptedString, EncryptedText
 
 class Medication(db.Model):
-    """Patient medications - both inpatient and outpatient"""
+    """Patient medications - data is automatically encrypted"""
     __tablename__ = 'medications'
     
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
     encounter_id = db.Column(db.Integer, db.ForeignKey('encounters.id'))
     
-    # Medication Info
-    name = db.Column(db.String(200), nullable=False)
-    generic_name = db.Column(db.String(200))
-    brand_name = db.Column(db.String(200))
+    # Medication Info - ENCRYPTED
+    name = db.Column(EncryptedString(200), nullable=False)
+    generic_name = db.Column(EncryptedString(200))
+    brand_name = db.Column(EncryptedString(200))
     
-    # Dosing
-    dose = db.Column(db.String(100))
-    dose_unit = db.Column(db.String(50))
-    route = db.Column(db.String(50))  # PO, IV, IM, SubQ, etc.
-    frequency = db.Column(db.String(100))  # BID, TID, PRN, etc.
+    # Dosing - ENCRYPTED
+    dose = db.Column(EncryptedString(100))
+    dose_unit = db.Column(EncryptedString(50))
+    route = db.Column(EncryptedString(50))  # PO, IV, IM, SubQ, etc.
+    frequency = db.Column(EncryptedString(100))  # BID, TID, PRN, etc.
     
-    # Additional Info
-    indication = db.Column(db.String(200))
-    instructions = db.Column(db.Text)
-    pharmacy_instructions = db.Column(db.Text)
+    # Additional Info - ENCRYPTED
+    indication = db.Column(EncryptedString(200))
+    instructions = db.Column(EncryptedText())
+    pharmacy_instructions = db.Column(EncryptedText())
     
-    # Order Info
-    ordering_provider = db.Column(db.String(200))
+    # Order Info - ENCRYPTED
+    ordering_provider = db.Column(EncryptedString(200))
     order_date = db.Column(db.DateTime)
     start_date = db.Column(db.DateTime)
     end_date = db.Column(db.DateTime)

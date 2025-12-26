@@ -1,8 +1,10 @@
 """
 Insurance Model - Patient insurance coverage and payer information
+SECURITY: All subscriber PII is automatically encrypted at rest
 """
 from datetime import datetime
 from . import db
+from utils.encryption import EncryptedString
 
 
 class InsurancePayer(db.Model):
@@ -44,7 +46,7 @@ class InsurancePayer(db.Model):
 
 
 class InsuranceCoverage(db.Model):
-    """Patient insurance coverage/policy information"""
+    """Patient insurance coverage - subscriber PII is encrypted"""
     __tablename__ = 'insurance_coverages'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -55,20 +57,20 @@ class InsuranceCoverage(db.Model):
     coverage_level = db.Column(db.String(20), default='Primary')  # Primary, Secondary, Tertiary
     coverage_priority = db.Column(db.Integer, default=1)  # 1 = Primary, 2 = Secondary, etc.
     
-    # Policy Information
-    policy_number = db.Column(db.String(100), nullable=False)
-    group_number = db.Column(db.String(100))
-    group_name = db.Column(db.String(200))
-    plan_name = db.Column(db.String(200))
-    plan_type = db.Column(db.String(50))  # HMO, PPO, EPO, POS, etc.
+    # Policy Information - ENCRYPTED
+    policy_number = db.Column(EncryptedString(100), nullable=False)
+    group_number = db.Column(EncryptedString(100))
+    group_name = db.Column(EncryptedString(200))
+    plan_name = db.Column(EncryptedString(200))
+    plan_type = db.Column(db.String(50))  # HMO, PPO, EPO, POS, etc. - plain for filtering
     
-    # Subscriber Information
-    subscriber_id = db.Column(db.String(100))  # Can be different from policy number
-    subscriber_first_name = db.Column(db.String(100))
-    subscriber_last_name = db.Column(db.String(100))
-    subscriber_dob = db.Column(db.Date)
+    # Subscriber Information - ALL ENCRYPTED (PII)
+    subscriber_id = db.Column(EncryptedString(100))  # Can be different from policy number
+    subscriber_first_name = db.Column(EncryptedString(100))
+    subscriber_last_name = db.Column(EncryptedString(100))
+    subscriber_dob = db.Column(db.Date)  # Date type for calculations
     subscriber_relationship = db.Column(db.String(50))  # Self, Spouse, Child, Other
-    subscriber_employer = db.Column(db.String(200))
+    subscriber_employer = db.Column(EncryptedString(200))
     
     # Effective Dates
     effective_date = db.Column(db.Date)

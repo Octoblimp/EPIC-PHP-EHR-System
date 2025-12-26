@@ -1,11 +1,13 @@
 """
 Lab Result Model - Laboratory results
+SECURITY: All lab values and comments are automatically encrypted at rest
 """
 from datetime import datetime
 from . import db
+from utils.encryption import EncryptedString, EncryptedText
 
 class LabResult(db.Model):
-    """Laboratory results"""
+    """Laboratory results - data is automatically encrypted"""
     __tablename__ = 'lab_results'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -14,25 +16,25 @@ class LabResult(db.Model):
     order_id = db.Column(db.Integer, db.ForeignKey('orders.id'))
     
     # Test Info
-    test_name = db.Column(db.String(200), nullable=False)
-    test_code = db.Column(db.String(50))
-    panel_name = db.Column(db.String(200))  # If part of a panel (e.g., BMP, CBC)
+    test_name = db.Column(EncryptedString(200), nullable=False)
+    test_code = db.Column(db.String(50))  # Plain for lookups
+    panel_name = db.Column(EncryptedString(200))  # If part of a panel (e.g., BMP, CBC)
     
-    # Result
-    value = db.Column(db.String(200))
-    numeric_value = db.Column(db.Float)
-    unit = db.Column(db.String(50))
+    # Result - ENCRYPTED (PHI)
+    value = db.Column(EncryptedString(200))
+    numeric_value = db.Column(db.Float)  # Numeric for calculations
+    unit = db.Column(EncryptedString(50))
     
     # Reference Range
     reference_low = db.Column(db.Float)
     reference_high = db.Column(db.Float)
-    reference_text = db.Column(db.String(200))
+    reference_text = db.Column(EncryptedString(200))
     
     # Flags
     flag = db.Column(db.String(20))  # High, Low, Critical High, Critical Low, Abnormal
     is_critical = db.Column(db.Boolean, default=False)
     critical_acknowledged = db.Column(db.Boolean, default=False)
-    critical_acknowledged_by = db.Column(db.String(200))
+    critical_acknowledged_by = db.Column(EncryptedString(200))
     
     # Timing
     collected_date = db.Column(db.DateTime)
@@ -42,12 +44,12 @@ class LabResult(db.Model):
     # Status
     status = db.Column(db.String(50), default='Final')  # Preliminary, Final, Corrected
     
-    # Lab Info
-    lab_name = db.Column(db.String(200))
-    performing_tech = db.Column(db.String(200))
+    # Lab Info - ENCRYPTED
+    lab_name = db.Column(EncryptedString(200))
+    performing_tech = db.Column(EncryptedString(200))
     
-    # Comments
-    comments = db.Column(db.Text)
+    # Comments - ENCRYPTED (may contain PHI)
+    comments = db.Column(EncryptedText())
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     

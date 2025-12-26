@@ -1,9 +1,11 @@
 """
 User Model - System users and authentication
 SECURITY: Uses Argon2id for password hashing (HIPAA-compliant)
+SECURITY: PII fields use automatic AES-256-GCM encryption
 """
 from datetime import datetime
 from . import db
+from utils.encryption import EncryptedString
 import argon2
 from argon2 import PasswordHasher, exceptions as argon2_exceptions
 
@@ -18,27 +20,27 @@ ph = PasswordHasher(
 )
 
 class User(db.Model):
-    """System users"""
+    """System users - PII is automatically encrypted at rest"""
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(100), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
+    username = db.Column(db.String(100), unique=True, nullable=False)  # Plain for login lookup
+    password_hash = db.Column(db.String(255), nullable=False)  # Already hashed
     
-    # Profile
-    first_name = db.Column(db.String(100), nullable=False)
-    last_name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(255), unique=True)
+    # Profile - ENCRYPTED
+    first_name = db.Column(EncryptedString(100), nullable=False)
+    last_name = db.Column(EncryptedString(100), nullable=False)
+    email = db.Column(EncryptedString(255))  # Encrypted - use username for unique login
     
-    # Role & Department
-    role = db.Column(db.String(50), nullable=False)  # Physician, Nurse, Admin, Tech, etc.
-    department = db.Column(db.String(100))
-    specialty = db.Column(db.String(100))
-    title = db.Column(db.String(100))  # MD, DO, RN, NP, PA, etc.
+    # Role & Department - ENCRYPTED
+    role = db.Column(db.String(50), nullable=False)  # Plain for permission lookups
+    department = db.Column(EncryptedString(100))
+    specialty = db.Column(EncryptedString(100))
+    title = db.Column(EncryptedString(100))  # MD, DO, RN, NP, PA, etc.
     
-    # Provider Info
-    npi = db.Column(db.String(20))  # National Provider Identifier
-    provider_id = db.Column(db.String(50))
+    # Provider Info - ENCRYPTED (NPI is sensitive)
+    npi = db.Column(EncryptedString(20))  # National Provider Identifier
+    provider_id = db.Column(EncryptedString(50))
     
     # Status
     is_active = db.Column(db.Boolean, default=True)

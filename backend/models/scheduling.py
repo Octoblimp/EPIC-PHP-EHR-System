@@ -1,14 +1,16 @@
 """
 Scheduling Models
 Appointment scheduling, provider calendars, resource booking
+SECURITY: PHI/PII is automatically encrypted at rest
 """
 from datetime import datetime, timedelta, date, time
 from . import db
+from utils.encryption import EncryptedString, EncryptedText
 import json
 
 
 class Appointment(db.Model):
-    """Appointment/scheduling model"""
+    """Appointment/scheduling model - ENCRYPTED"""
     __tablename__ = 'appointments'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -46,15 +48,15 @@ class Appointment(db.Model):
     visit_ended_at = db.Column(db.DateTime)
     checked_out_at = db.Column(db.DateTime)
     
-    # Details
-    reason_for_visit = db.Column(db.String(500))
-    chief_complaint = db.Column(db.String(500))
-    notes = db.Column(db.Text)
-    special_instructions = db.Column(db.Text)
+    # Details - ENCRYPTED (clinical PHI)
+    reason_for_visit = db.Column(EncryptedString(500))
+    chief_complaint = db.Column(EncryptedString(500))
+    notes = db.Column(EncryptedText())
+    special_instructions = db.Column(EncryptedText())
     
-    # Insurance/Authorization
+    # Insurance/Authorization - ENCRYPTED
     insurance_verified = db.Column(db.Boolean, default=False)
-    authorization_number = db.Column(db.String(50))
+    authorization_number = db.Column(EncryptedString(50))
     copay_amount = db.Column(db.Numeric(10, 2))
     copay_collected = db.Column(db.Boolean, default=False)
     
@@ -63,10 +65,10 @@ class Appointment(db.Model):
     recurrence_pattern_id = db.Column(db.Integer, db.ForeignKey('recurrence_patterns.id'))
     parent_appointment_id = db.Column(db.Integer, db.ForeignKey('appointments.id'))
     
-    # Cancellation
+    # Cancellation - ENCRYPTED
     cancelled_at = db.Column(db.DateTime)
     cancelled_by = db.Column(db.Integer, db.ForeignKey('users.id'))
-    cancellation_reason = db.Column(db.String(500))
+    cancellation_reason = db.Column(EncryptedString(500))
     
     # Encounter link
     encounter_id = db.Column(db.Integer, db.ForeignKey('encounters.id'))

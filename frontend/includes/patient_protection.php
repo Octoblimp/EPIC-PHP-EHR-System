@@ -1,7 +1,13 @@
 <?php
 /**
  * Openspace EHR - Patient Record Protection
- * DOB-based access verification for patient records
+ * HIPAA-Compliant DOB-based access verification for patient records
+ * 
+ * SECURITY NOTES:
+ * - Verification MUST happen server-side before ANY patient data is loaded
+ * - Uses constant-time comparison to prevent timing attacks
+ * - Sessions are cryptographically signed to prevent tampering
+ * - Rate limiting prevents brute force attacks
  */
 
 /**
@@ -15,6 +21,7 @@ function isPatientProtectionEnabled() {
 
 /**
  * Check if user has verified access to patient
+ * Enhanced with signature verification to prevent session tampering
  */
 function hasVerifiedPatientAccess($patient_id) {
     if (!isPatientProtectionEnabled()) {
@@ -24,16 +31,79 @@ function hasVerifiedPatientAccess($patient_id) {
     $verified_patients = $_SESSION['verified_patients'] ?? [];
     $expiry_time = $_SESSION['verified_patients_expiry'][$patient_id] ?? 0;
     
-    // Check if verified and not expired (30 minute sessions)
-    if (in_array($patient_id, $verified_patients) && time() < $expiry_time) {
-        return true;
+    // Check if patient ID is in verified list
+    if (!in_array($patient_id, $verified_patients)) {
+        return false;
     }
     
-    return false;
+    // Check expiry (30 minute sessions)
+    if (time() >= $expiry_time) {
+        // Expired - remove verification
+        clearPatientVerification($patient_id);
+        return false;
+    }
+    
+    // Verify signature to prevent tampering
+    $expected_sig = hash_hmac(
+        'sha256',
+        $patient_id . $expiry_time,
+        session_id()
+    );
+    
+    $stored_sig = $_SESSION['verified_patients_sig'][$patient_id] ?? '';
+    
+    // Constant-time comparison
+    if (!hash_equals($expected_sig, $stored_sig)) {
+        // Signature mismatch - possible tampering
+        clearPatientVerification($patient_id);
+        
+        // Log security event
+        if (function_exists('logAudit')) {
+            logAudit('SECURITY_ALERT', 'Patient Record', 'Verification signature mismatch detected', $patient_id);
+        }
+        
+        return false;
+    }
+    
+    return true;
 }
 
 /**
- * Verify patient access with DOB
+ * Grant patient access with secure session storage
+ * Called after successful DOB verification
+ */
+function grantSecurePatientAccess($patient_id) {
+    if (!isset($_SESSION['verified_patients'])) {
+        $_SESSION['verified_patients'] = [];
+        $_SESSION['verified_patients_expiry'] = [];
+        $_SESSION['verified_patients_sig'] = [];
+    }
+    
+    // Store verification
+    if (!in_array($patient_id, $_SESSION['verified_patients'])) {
+        $_SESSION['verified_patients'][] = $patient_id;
+    }
+    
+    // Set expiry (30 minutes)
+    $expiry_time = time() + (30 * 60);
+    $_SESSION['verified_patients_expiry'][$patient_id] = $expiry_time;
+    
+    // Generate cryptographic signature to prevent tampering
+    $_SESSION['verified_patients_sig'][$patient_id] = hash_hmac(
+        'sha256',
+        $patient_id . $expiry_time,
+        session_id()
+    );
+    
+    // Log successful verification
+    if (function_exists('logAudit')) {
+        logAudit('PATIENT_ACCESS_VERIFIED', 'Patient Record', 'Secure DOB verification successful', $patient_id);
+    }
+}
+
+/**
+ * Verify patient access with DOB (legacy function - use verify-patient.php instead)
+ * This remains for API compatibility but new code should use the secure verification page
  */
 function verifyPatientAccess($patient_id, $entered_dob) {
     // Get patient's actual DOB from API
@@ -63,23 +133,10 @@ function verifyPatientAccess($patient_id, $entered_dob) {
         // Clean entered DOB (remove any separators)
         $entered_clean = preg_replace('/[^0-9]/', '', $entered_dob);
         
-        // Compare
-        if ($entered_clean === $formatted_dob) {
-            // Grant access
-            if (!isset($_SESSION['verified_patients'])) {
-                $_SESSION['verified_patients'] = [];
-                $_SESSION['verified_patients_expiry'] = [];
-            }
-            
-            $_SESSION['verified_patients'][] = $patient_id;
-            $_SESSION['verified_patients'][$patient_id] = true;
-            $_SESSION['verified_patients_expiry'][$patient_id] = time() + (30 * 60); // 30 minutes
-            
-            // Log successful verification
-            if (function_exists('logAudit')) {
-                logAudit('PATIENT_ACCESS_VERIFIED', 'Patient Record', 'DOB verification successful', $patient_id);
-            }
-            
+        // SECURITY: Use constant-time comparison to prevent timing attacks
+        if (hash_equals($formatted_dob, $entered_clean)) {
+            // Grant secure access
+            grantSecurePatientAccess($patient_id);
             return ['success' => true];
         } else {
             // Log failed verification attempt
@@ -99,117 +156,54 @@ function verifyPatientAccess($patient_id, $entered_dob) {
  */
 function clearPatientVerification($patient_id = null) {
     if ($patient_id) {
+        // Remove from array
         $key = array_search($patient_id, $_SESSION['verified_patients'] ?? []);
         if ($key !== false) {
             unset($_SESSION['verified_patients'][$key]);
+            $_SESSION['verified_patients'] = array_values($_SESSION['verified_patients']); // Re-index
         }
         unset($_SESSION['verified_patients_expiry'][$patient_id]);
+        unset($_SESSION['verified_patients_sig'][$patient_id]);
     } else {
         // Clear all
         $_SESSION['verified_patients'] = [];
         $_SESSION['verified_patients_expiry'] = [];
+        $_SESSION['verified_patients_sig'] = [];
     }
 }
 
 /**
- * Generate patient verification modal HTML
+ * Get URL for secure verification page
  */
-function renderPatientVerificationModal() {
-    if (!isPatientProtectionEnabled()) {
-        return '';
+function getVerificationUrl($patient_id, $return_tab = 'summary') {
+    return 'verify-patient.php?id=' . (int)$patient_id . '&tab=' . urlencode($return_tab);
+}
+
+/**
+ * Check if verification is about to expire (within 5 minutes)
+ */
+function isVerificationExpiringSoon($patient_id) {
+    $expiry_time = $_SESSION['verified_patients_expiry'][$patient_id] ?? 0;
+    return ($expiry_time - time()) < 300; // Less than 5 minutes
+}
+
+/**
+ * Extend verification time (reset to 30 minutes)
+ */
+function extendVerification($patient_id) {
+    if (!hasVerifiedPatientAccess($patient_id)) {
+        return false;
     }
     
-    return '
-    <!-- Patient Verification Modal -->
-    <div id="patientVerifyModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header">
-                <h3><i class="fas fa-shield-alt"></i> Patient Record Protection</h3>
-                <button type="button" class="modal-close" onclick="closeVerifyModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p style="margin-bottom: 15px;">Please verify your access to this patient\'s record by entering their date of birth.</p>
-                <div class="form-group">
-                    <label>Patient Date of Birth</label>
-                    <input type="text" id="verifyDOB" class="form-control" placeholder="MMDDYYYY" maxlength="8" pattern="[0-9]*" inputmode="numeric">
-                    <small style="color: #888;">Format: MMDDYYYY (e.g., 01311990)</small>
-                </div>
-                <div id="verifyError" class="alert alert-danger" style="display: none;"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeVerifyModal()">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="submitVerification()">
-                    <i class="fas fa-check"></i> Verify
-                </button>
-            </div>
-        </div>
-    </div>
+    $expiry_time = time() + (30 * 60);
+    $_SESSION['verified_patients_expiry'][$patient_id] = $expiry_time;
     
-    <script>
-    var pendingPatientId = null;
-    var pendingRedirectUrl = null;
+    // Update signature
+    $_SESSION['verified_patients_sig'][$patient_id] = hash_hmac(
+        'sha256',
+        $patient_id . $expiry_time,
+        session_id()
+    );
     
-    function requirePatientVerification(patientId, redirectUrl) {
-        pendingPatientId = patientId;
-        pendingRedirectUrl = redirectUrl || null;
-        document.getElementById("verifyDOB").value = "";
-        document.getElementById("verifyError").style.display = "none";
-        document.getElementById("patientVerifyModal").style.display = "flex";
-        document.getElementById("verifyDOB").focus();
-    }
-    
-    function closeVerifyModal() {
-        document.getElementById("patientVerifyModal").style.display = "none";
-        pendingPatientId = null;
-        pendingRedirectUrl = null;
-    }
-    
-    function submitVerification() {
-        var dob = document.getElementById("verifyDOB").value;
-        var errorDiv = document.getElementById("verifyError");
-        
-        if (!dob || dob.length !== 8) {
-            errorDiv.textContent = "Please enter date of birth in MMDDYYYY format";
-            errorDiv.style.display = "block";
-            return;
-        }
-        
-        fetch("/api/verify-patient-access", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ patient_id: pendingPatientId, dob: dob })
-        })
-        .then(function(response) { return response.json(); })
-        .then(function(data) {
-            if (data.success) {
-                closeVerifyModal();
-                if (pendingRedirectUrl) {
-                    window.location.href = pendingRedirectUrl;
-                } else {
-                    window.location.reload();
-                }
-            } else {
-                errorDiv.textContent = data.error || "Verification failed";
-                errorDiv.style.display = "block";
-            }
-        })
-        .catch(function(err) {
-            errorDiv.textContent = "Error verifying access: " + err.message;
-            errorDiv.style.display = "block";
-        });
-    }
-    
-    // Handle enter key
-    document.addEventListener("DOMContentLoaded", function() {
-        var dobField = document.getElementById("verifyDOB");
-        if (dobField) {
-            dobField.addEventListener("keypress", function(e) {
-                if (e.key === "Enter") {
-                    submitVerification();
-                }
-            });
-        }
-    });
-    </script>
-    ';
+    return true;
 }

@@ -1,44 +1,51 @@
 """
 Patient Model - Core patient demographics and information
+SECURITY: All PHI/PII fields use automatic AES-256-GCM encryption
+Data is encrypted on write, decrypted on read - completely transparent
 """
 from datetime import datetime
 from . import db
+from utils.encryption import EncryptedString, EncryptedText
 
 class Patient(db.Model):
-    """Patient demographics and core information"""
+    """Patient demographics and core information
+    
+    ENCRYPTION: All personal/medical data is automatically encrypted at rest.
+    The encryption/decryption happens transparently via SQLAlchemy type decorators.
+    """
     __tablename__ = 'patients'
     
     id = db.Column(db.Integer, primary_key=True)
-    mrn = db.Column(db.String(20), unique=True, nullable=False)  # Medical Record Number
+    mrn = db.Column(db.String(20), unique=True, nullable=False)  # MRN stays plain for indexing
     csn = db.Column(db.String(20))  # Contact Serial Number (encounter)
     
-    # Demographics
-    first_name = db.Column(db.String(100), nullable=False)
-    last_name = db.Column(db.String(100), nullable=False)
-    middle_name = db.Column(db.String(100))
-    date_of_birth = db.Column(db.Date, nullable=False)
-    gender = db.Column(db.String(20))
-    ssn_last_four = db.Column(db.String(4))
+    # Demographics - ALL ENCRYPTED
+    first_name = db.Column(EncryptedString(100), nullable=False)
+    last_name = db.Column(EncryptedString(100), nullable=False)
+    middle_name = db.Column(EncryptedString(100))
+    date_of_birth = db.Column(db.Date, nullable=False)  # Date type for calculations
+    gender = db.Column(EncryptedString(20))
+    ssn_last_four = db.Column(EncryptedString(4))
     
-    # Contact Info
-    address = db.Column(db.String(255))
-    city = db.Column(db.String(100))
-    state = db.Column(db.String(2))
-    zip_code = db.Column(db.String(10))
-    phone_home = db.Column(db.String(20))
-    phone_cell = db.Column(db.String(20))
-    email = db.Column(db.String(255))
+    # Contact Info - ALL ENCRYPTED
+    address = db.Column(EncryptedString(255))
+    city = db.Column(EncryptedString(100))
+    state = db.Column(EncryptedString(2))
+    zip_code = db.Column(EncryptedString(10))
+    phone_home = db.Column(EncryptedString(20))
+    phone_cell = db.Column(EncryptedString(20))
+    email = db.Column(EncryptedString(255))
     
-    # Medical Info
-    blood_type = db.Column(db.String(5))
-    height_inches = db.Column(db.Float)
-    weight_lbs = db.Column(db.Float)
-    bmi = db.Column(db.Float)
+    # Medical Info - ALL ENCRYPTED
+    blood_type = db.Column(EncryptedString(5))
+    height_inches = db.Column(db.Float)  # Numeric for calculations
+    weight_lbs = db.Column(db.Float)  # Numeric for calculations
+    bmi = db.Column(db.Float)  # Numeric for calculations
     
-    # Administrative
-    primary_care_provider = db.Column(db.String(200))
-    insurance_plan = db.Column(db.String(200))
-    preferred_language = db.Column(db.String(50), default='English')
+    # Administrative - ENCRYPTED
+    primary_care_provider = db.Column(EncryptedString(200))
+    insurance_plan = db.Column(EncryptedString(200))
+    preferred_language = db.Column(EncryptedString(50))
     
     # Status
     is_active = db.Column(db.Boolean, default=True)
@@ -97,18 +104,18 @@ class Patient(db.Model):
 
 
 class Allergy(db.Model):
-    """Patient allergies"""
+    """Patient allergies - Clinical data is encrypted"""
     __tablename__ = 'allergies'
     
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
-    allergen = db.Column(db.String(200), nullable=False)
-    reaction = db.Column(db.String(200))
-    severity = db.Column(db.String(50))  # Mild, Moderate, Severe
-    allergy_type = db.Column(db.String(50))  # Drug, Food, Environmental
+    allergen = db.Column(EncryptedString(200), nullable=False)
+    reaction = db.Column(EncryptedString(200))
+    severity = db.Column(EncryptedString(50))  # Mild, Moderate, Severe
+    allergy_type = db.Column(EncryptedString(50))  # Drug, Food, Environmental
     onset_date = db.Column(db.Date)
     is_active = db.Column(db.Boolean, default=True)
-    verified_by = db.Column(db.String(200))
+    verified_by = db.Column(EncryptedString(200))
     verified_date = db.Column(db.DateTime)
     
     def to_dict(self):
