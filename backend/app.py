@@ -36,6 +36,7 @@ def create_app(config_name='default'):
     from routes.note_routes import note_bp
     from routes.auth_routes import auth_bp
     from routes.insurance_routes import insurance_bp
+    from routes.admin_routes import admin_bp
     
     app.register_blueprint(auth_bp)  # Already has url_prefix='/api/auth'
     app.register_blueprint(patient_bp, url_prefix='/api/patients')
@@ -46,6 +47,7 @@ def create_app(config_name='default'):
     app.register_blueprint(lab_bp, url_prefix='/api/labs')
     app.register_blueprint(note_bp, url_prefix='/api/notes')
     app.register_blueprint(insurance_bp)  # Routes defined with /api prefix
+    app.register_blueprint(admin_bp, url_prefix='/api/admin')
     
     # Root endpoint
     @app.route('/')
@@ -82,18 +84,27 @@ def create_app(config_name='default'):
     
     return app
 
-# Create tables and seed data
-def init_db(app):
-    """Initialize database with tables and sample data"""
+# Create tables (no automatic seeding)
+def init_db(app, seed_demo_data=False):
+    """Initialize database with tables only.
+    
+    Args:
+        app: Flask application instance
+        seed_demo_data: If True, will seed demo data (only if DB is empty)
+    """
     with app.app_context():
         db.create_all()
+        print("Database tables created successfully.")
         
-        # Check if data already exists
-        if Patient.query.first() is None:
-            seed_database()
-            print("Database seeded with sample data!")
+        # Only seed if explicitly requested AND database is empty
+        if seed_demo_data:
+            if Patient.query.first() is None:
+                seed_database()
+                print("Database seeded with sample data!")
+            else:
+                print("Database already contains data - skipping seed.")
         else:
-            print("Database already contains data.")
+            print("Demo data seeding skipped (use --seed flag or API to seed).")
 
 def seed_database():
     """Seed the database with sample EHR data"""
@@ -615,7 +626,22 @@ def seed_database():
     print("Sample data created successfully!")
 
 
+# Make seed_database accessible for API calls
+def get_seed_function():
+    """Return the seed_database function for external use"""
+    return seed_database
+
+
 if __name__ == '__main__':
+    import sys
+    
     app = create_app('development')
-    init_db(app)
+    
+    # Check for --seed flag to enable demo data
+    seed_demo = '--seed' in sys.argv or '--demo' in sys.argv
+    
+    if seed_demo:
+        print("Demo data seeding ENABLED via command line flag.")
+    
+    init_db(app, seed_demo_data=seed_demo)
     app.run(host='0.0.0.0', port=5000, debug=True)

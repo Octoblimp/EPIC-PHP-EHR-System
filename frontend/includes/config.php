@@ -4,6 +4,28 @@
  * HIPAA-compliant security configuration
  */
 
+// Check if setup is needed (first-time installation)
+$setupCompletePath = __DIR__ . '/.setup_complete';
+$currentScript = basename($_SERVER['SCRIPT_NAME'] ?? '');
+
+// Redirect to setup if not complete and not already on setup page
+if (!file_exists($setupCompletePath) && $currentScript !== 'setup.php') {
+    // Get the base path for redirection
+    $basePath = dirname($_SERVER['SCRIPT_NAME']);
+    $setupPath = rtrim($basePath, '/') . '/setup.php';
+    
+    // For files in subdirectories, adjust path
+    if (strpos($_SERVER['SCRIPT_NAME'], '/includes/') !== false ||
+        strpos($_SERVER['SCRIPT_NAME'], '/api/') !== false ||
+        strpos($_SERVER['SCRIPT_NAME'], '/admin/') !== false ||
+        strpos($_SERVER['SCRIPT_NAME'], '/activities/') !== false) {
+        $setupPath = dirname(dirname($_SERVER['SCRIPT_NAME'])) . '/setup.php';
+    }
+    
+    header('Location: ' . $setupPath);
+    exit;
+}
+
 // Include security module first
 require_once __DIR__ . '/security.php';
 

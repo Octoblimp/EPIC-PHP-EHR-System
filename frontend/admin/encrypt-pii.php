@@ -122,23 +122,71 @@ $message_type = '';
 $encryption_stats = [];
 $key_status = [];
 
+// Encryption key file location (within allowed paths)
+define('ENCRYPTION_KEY_FILE', __DIR__ . '/../.encryption_key');
+
+/**
+ * Generate a cryptographically secure encryption key
+ */
+function generateEncryptionKey() {
+    return bin2hex(random_bytes(32)); // 64 hex characters = 256 bits
+}
+
+/**
+ * Get or create encryption key
+ */
+function getOrCreateEncryptionKey() {
+    // First check environment variable
+    $envKey = getenv('HIPAA_ENCRYPTION_KEY');
+    if (!empty($envKey)) {
+        return ['source' => 'env', 'key' => $envKey];
+    }
+    
+    // Check for key file
+    if (file_exists(ENCRYPTION_KEY_FILE)) {
+        $key = trim(file_get_contents(ENCRYPTION_KEY_FILE));
+        if (!empty($key)) {
+            return ['source' => 'file', 'key' => $key];
+        }
+    }
+    
+    // Generate and save new key
+    $newKey = generateEncryptionKey();
+    if (file_put_contents(ENCRYPTION_KEY_FILE, $newKey) !== false) {
+        chmod(ENCRYPTION_KEY_FILE, 0600); // Restrict permissions
+        return ['source' => 'generated', 'key' => $newKey];
+    }
+    
+    return ['source' => 'none', 'key' => null];
+}
+
 // Check encryption key status
 function checkKeyStatus() {
+    $keyInfo = getOrCreateEncryptionKey();
+    
     $status = [
-        'env_key' => !empty(getenv('HIPAA_ENCRYPTION_KEY')),
-        'file_key' => file_exists(__DIR__ . '/../../backend/.encryption_key'),
+        'env_key' => $keyInfo['source'] === 'env',
+        'file_key' => $keyInfo['source'] === 'file' || $keyInfo['source'] === 'generated',
+        'key_exists' => $keyInfo['key'] !== null,
         'key_source' => 'Not Set'
     ];
     
-    if ($status['env_key']) {
-        $status['key_source'] = 'Environment Variable';
-        $status['key_strength'] = 'Strong (Production Ready)';
-    } elseif ($status['file_key']) {
-        $status['key_source'] = 'Development Key File';
-        $status['key_strength'] = 'Weak (Development Only)';
-    } else {
-        $status['key_source'] = 'Auto-Generated (Not Persistent!)';
-        $status['key_strength'] = 'Critical - Set HIPAA_ENCRYPTION_KEY!';
+    switch ($keyInfo['source']) {
+        case 'env':
+            $status['key_source'] = 'Environment Variable';
+            $status['key_strength'] = 'Strong (Production Ready)';
+            break;
+        case 'file':
+            $status['key_source'] = 'Configuration File';
+            $status['key_strength'] = 'Good (Auto-saved)';
+            break;
+        case 'generated':
+            $status['key_source'] = 'Auto-Generated & Saved';
+            $status['key_strength'] = 'Good (Newly created and saved)';
+            break;
+        default:
+            $status['key_source'] = 'Not Set - Unable to create';
+            $status['key_strength'] = 'Critical - Check file permissions!';
     }
     
     return $status;
@@ -155,39 +203,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     } else {
         switch ($_POST['action']) {
             case 'test_encryption':
-                // Call backend API to test encryption
+                // Test encryption locally using PHP
                 try {
-                    $response = apiRequest('POST', '/api/admin/encryption/test');
-                    if ($response['success'] ?? false) {
-                        $message = 'Encryption test PASSED. AES-256-GCM is working correctly.';
+                    $keyInfo = getOrCreateEncryptionKey();
+                    if ($keyInfo['key'] === null) {
+                        throw new Exception('No encryption key available');
+                    }
+                    
+                    // Simple encryption test using OpenSSL
+                    $testData = 'Test Patient Data - SSN: 123-45-6789';
+                    $cipher = 'aes-256-gcm';
+                    $iv = random_bytes(12);
+                    $tag = '';
+                    
+                    $encrypted = openssl_encrypt($testData, $cipher, hex2bin($keyInfo['key']), OPENSSL_RAW_DATA, $iv, $tag, '', 16);
+                    $decrypted = openssl_decrypt($encrypted, $cipher, hex2bin($keyInfo['key']), OPENSSL_RAW_DATA, $iv, $tag);
+                    
+                    if ($decrypted === $testData) {
+                        $message = 'Encryption test PASSED! AES-256-GCM is working correctly. Key source: ' . $keyInfo['source'];
                         $message_type = 'success';
                     } else {
-                        $message = 'Encryption test FAILED: ' . ($response['error'] ?? 'Unknown error');
+                        $message = 'Encryption test FAILED: Decrypted data does not match original.';
                         $message_type = 'danger';
                     }
                 } catch (Exception $e) {
-                    // Fallback: test locally
-                    $message = 'Backend API unavailable. Encryption requires the Python backend to be running.';
-                    $message_type = 'warning';
+                    $message = 'Encryption test FAILED: ' . $e->getMessage();
+                    $message_type = 'danger';
+                }
+                break;
+                
+            case 'generate_key':
+                // Generate a new encryption key and save it
+                try {
+                    $newKey = generateEncryptionKey();
+                    if (file_put_contents(ENCRYPTION_KEY_FILE, $newKey) !== false) {
+                        chmod(ENCRYPTION_KEY_FILE, 0600);
+                        $message = 'New encryption key generated and saved successfully!';
+                        $message_type = 'success';
+                        $key_status = checkKeyStatus(); // Refresh status
+                    } else {
+                        $message = 'Failed to save encryption key. Check file permissions.';
+                        $message_type = 'danger';
+                    }
+                } catch (Exception $e) {
+                    $message = 'Failed to generate key: ' . $e->getMessage();
+                    $message_type = 'danger';
                 }
                 break;
                 
             case 'analyze':
-                // Call backend API to analyze encryption status
-                try {
-                    $response = apiRequest('GET', '/api/admin/encryption/status');
-                    if ($response['success'] ?? false) {
-                        $encryption_stats = $response['data'] ?? [];
-                        $message = 'Analysis complete. See results below.';
-                        $message_type = 'info';
-                    } else {
-                        $message = 'Analysis failed: ' . ($response['error'] ?? 'Unknown error');
-                        $message_type = 'danger';
-                    }
-                } catch (Exception $e) {
-                    $message = 'Backend API unavailable. Run analysis from command line: python -m backend.utils.encrypt_database --analyze';
-                    $message_type = 'warning';
-                }
+                // For now, show info about running CLI command
+                $message = 'Database analysis requires the Python backend. Run from command line: <code>python -m backend.utils.encrypt_database --analyze</code>';
+                $message_type = 'info';
                 break;
                 
             case 'encrypt_table':
@@ -196,54 +263,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $message = 'Invalid table specified.';
                     $message_type = 'danger';
                 } else {
-                    try {
-                        $response = apiRequest('POST', '/api/admin/encryption/encrypt', [
-                            'table' => $table
-                        ]);
-                        if ($response['success'] ?? false) {
-                            $message = 'Successfully encrypted ' . ($response['records_encrypted'] ?? 0) . ' records in ' . $table;
-                            $message_type = 'success';
-                        } else {
-                            $message = 'Encryption failed: ' . ($response['error'] ?? 'Unknown error');
-                            $message_type = 'danger';
-                        }
-                    } catch (Exception $e) {
-                        $message = 'Backend API unavailable. Run encryption from command line: python -m backend.utils.encrypt_database --table ' . escapeshellarg($table);
-                        $message_type = 'warning';
-                    }
+                    $message = 'Table encryption requires the Python backend. Run: <code>python -m backend.utils.encrypt_database --table ' . htmlspecialchars($table) . '</code>';
+                    $message_type = 'info';
                 }
                 break;
                 
             case 'encrypt_all':
-                try {
-                    $response = apiRequest('POST', '/api/admin/encryption/encrypt-all');
-                    if ($response['success'] ?? false) {
-                        $message = 'Full database encryption initiated. ' . ($response['message'] ?? '');
-                        $message_type = 'success';
-                    } else {
-                        $message = 'Encryption failed: ' . ($response['error'] ?? 'Unknown error');
-                        $message_type = 'danger';
-                    }
-                } catch (Exception $e) {
-                    $message = 'Backend API unavailable. Run from command line: python -m backend.utils.encrypt_database --all';
-                    $message_type = 'warning';
-                }
+                $message = 'Full database encryption requires the Python backend. Run: <code>python -m backend.utils.encrypt_database --all</code>';
+                $message_type = 'info';
                 break;
                 
             case 'verify':
-                try {
-                    $response = apiRequest('POST', '/api/admin/encryption/verify');
-                    if ($response['success'] ?? false) {
-                        $message = 'Encryption verification passed. All encrypted data can be decrypted correctly.';
-                        $message_type = 'success';
-                    } else {
-                        $message = 'Verification issues: ' . ($response['error'] ?? 'Some records may have encryption issues');
-                        $message_type = 'warning';
-                    }
-                } catch (Exception $e) {
-                    $message = 'Backend API unavailable. Run verification from command line: python -m backend.utils.encrypt_database --verify';
-                    $message_type = 'warning';
-                }
+                $message = 'Encryption verification requires the Python backend. Run: <code>python -m backend.utils.encrypt_database --verify</code>';
+                $message_type = 'info';
                 break;
         }
     }

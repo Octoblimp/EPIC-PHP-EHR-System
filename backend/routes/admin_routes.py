@@ -4,12 +4,79 @@ Admin Routes - User management, roles, departments, themes, audit logs
 from flask import Blueprint, request, jsonify
 from models import db
 from models.user import User
+from models.patient import Patient
 from models.theme import Organization, Department, Bed, Theme, SystemSetting
 from models.role import Role, Permission, RolePermission, AuditLog, PatientList, DEFAULT_ROLES, DEFAULT_PERMISSIONS
 from datetime import datetime
 import json
+import os
 
 admin_bp = Blueprint('admin', __name__)
+
+
+# ============== Setup / Demo Data ==============
+
+@admin_bp.route('/setup/seed-demo-data', methods=['POST'])
+def seed_demo_data():
+    """Seed the database with demo/sample data.
+    
+    This endpoint is called by the frontend setup wizard when the user
+    opts to install sample data. Requires a setup token for security.
+    """
+    data = request.get_json() or {}
+    
+    # Verify setup token (passed from setup.php)
+    setup_token = data.get('setup_token')
+    expected_token = os.environ.get('SETUP_TOKEN', '')
+    
+    # Allow if: valid token provided, OR no token set (first-time setup), OR from localhost
+    is_localhost = request.remote_addr in ['127.0.0.1', '::1', 'localhost']
+    token_valid = (setup_token and setup_token == expected_token) if expected_token else True
+    
+    if not (is_localhost or token_valid):
+        return jsonify({
+            'success': False,
+            'error': 'Unauthorized. Setup can only be performed from localhost or with valid token.'
+        }), 403
+    
+    # Check if data already exists
+    if Patient.query.first() is not None:
+        return jsonify({
+            'success': False,
+            'error': 'Database already contains data. Demo data can only be seeded into an empty database.',
+            'has_data': True
+        }), 400
+    
+    try:
+        # Import and run the seed function from app.py
+        from app import get_seed_function
+        seed_database = get_seed_function()
+        seed_database()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Demo data seeded successfully!'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': f'Failed to seed demo data: {str(e)}'
+        }), 500
+
+
+@admin_bp.route('/setup/check-status', methods=['GET'])
+def check_setup_status():
+    """Check if the system has been set up (has data)"""
+    has_users = User.query.first() is not None
+    has_patients = Patient.query.first() is not None
+    
+    return jsonify({
+        'success': True,
+        'is_initialized': has_users or has_patients,
+        'has_users': has_users,
+        'has_patients': has_patients
+    })
 
 
 # ============== User Management ==============
