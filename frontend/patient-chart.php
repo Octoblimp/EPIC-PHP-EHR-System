@@ -182,6 +182,7 @@ $page_title = $patient_name . ' - ' . APP_NAME;
 
 // Include header
 include 'includes/header.php';
+?>
 
     <!-- Enhanced Patient Header Banner - Epic Hyperspace Style -->
     <div class="patient-banner enhanced">
